@@ -15,7 +15,9 @@ Multi-Level Feedback Queue (MLFQ) is a CPU scheduling algorithm used by operatin
 
 ### Core Files
 
-- `simple_main.py` - The main program that runs everything
+- `launcher.py` - Simple launcher to choose between GUI and command-line versions
+- `simple_gui.py` - Graphical user interface version (recommended for beginners)
+- `simple_main.py` - Command-line version of the main program
 - `simple_process.py` - Defines what a process looks like
 - `simple_scheduler.py` - The MLFQ scheduling algorithm
 - `simple_input.py` - Helper functions for getting user input
@@ -23,11 +25,25 @@ Multi-Level Feedback Queue (MLFQ) is a CPU scheduling algorithm used by operatin
 ### How to Run
 
 1. Make sure you have Python 3 installed
-2. Run the main program:
+2. Choose your preferred interface:
+
+   **Option 1: Launcher (Recommended)**
+   ```bash
+   python launcher.py
+   ```
+   This opens a simple window where you can choose between GUI and command-line versions.
+
+   **Option 2: GUI Version (Easiest for Beginners)**
+   ```bash
+   python simple_gui.py
+   ```
+   This opens a graphical interface with buttons, forms, and visual results.
+
+   **Option 3: Command-Line Version**
    ```bash
    python simple_main.py
    ```
-3. Follow the prompts to set up your simulation
+   This runs in the terminal with text prompts and outputs.
 
 ## What Each File Does
 
@@ -52,10 +68,24 @@ Multi-Level Feedback Queue (MLFQ) is a CPU scheduling algorithm used by operatin
 
 ### `simple_main.py`
 
-- The main program that coordinates everything
-- Gets input from the user
+- The command-line version of the main program
+- Gets input from the user through text prompts
 - Runs the simulation
 - Displays results in a nice format
+
+### `simple_gui.py`
+
+- The graphical user interface version
+- Uses tkinter to create a user-friendly interface
+- Has tabs for different functions (Processes, Settings, Simulation, Results)
+- Shows results in tables and formatted text
+- Recommended for beginners who prefer visual interfaces
+
+### `launcher.py`
+
+- A simple launcher that lets you choose between GUI and command-line versions
+- Opens a small window with two buttons
+- Makes it easy to pick your preferred interface
 
 ## Key Concepts Explained
 
@@ -88,16 +118,48 @@ If a process waits too long in a lower priority queue, it gets moved up to a hig
 
 This means we can interrupt a running process if a higher priority one arrives. Like if a VIP customer shows up, we might interrupt the current customer.
 
+## GUI Features
+
+The GUI version (`simple_gui.py`) provides a beginner-friendly interface with:
+
+### **Processes Tab**
+- Choose number of processes with a spinner
+- Toggle between default and custom processes
+- Add custom processes with a form
+- View all processes in a table
+- Clear processes with one click
+
+### **Settings Tab**
+- Configure scheduler settings with spinners and radio buttons
+- See helpful explanations for each setting
+- Built-in help text explaining MLFQ concepts
+- Real-time settings preview
+
+### **Simulation Tab**
+- One-click simulation start
+- Progress bar showing simulation status
+- Current settings display
+- Easy access to run simulations
+
+### **Results Tab**
+- Visual timeline showing process execution
+- Interactive results table with all process details
+- Summary statistics in a formatted display
+- Easy-to-read formatting and organization
+
 ## Example Output
 
-When you run the program, you'll see:
+**GUI Version:**
+- Visual tabs for different functions
+- Tables and formatted displays
+- Progress indicators and status messages
+- Interactive forms and buttons
 
-1. A welcome message explaining MLFQ
-2. Options to set up processes (or use defaults)
-3. Scheduler settings (quantum, thresholds, etc.)
-4. A timeline showing when each process ran
-5. Detailed results for each process
-6. Summary statistics (averages, CPU utilization)
+**Command-Line Version:**
+- Text-based prompts and responses
+- Formatted console output
+- Step-by-step configuration process
+- Detailed text results and statistics
 
 ## Learning Objectives
 
