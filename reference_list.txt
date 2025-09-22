@@ -1,0 +1,194 @@
+REFERENCE LIST - Python MLFQ Scheduler Code Citations
+========================================================
+
+This document contains all the educational references cited in the beginner-friendly MLFQ CPU scheduler code.
+
+W3SCHOOLS REFERENCES:
+====================
+
+1. Python Functions
+   - URL: https://www.w3schools.com/python/python_functions.asp
+   - Used for: Custom function definitions and calls
+   - Examples in code: print_section_title(), get_processes_from_user(), get_scheduler_settings()
+
+2. Python Input
+   - URL: https://www.w3schools.com/python/python_user_input.asp
+   - Used for: User input handling and data collection
+   - Examples in code: get_number(), get_yes_or_no(), input() function calls
+
+3. Python Built-in Functions
+   - URL: https://www.w3schools.com/python/python_ref_functions.asp
+   - Used for: Built-in Python functions like int(), len(), sorted(), min()
+   - Examples in code: int(user_input), len(sorted_processes), sorted(process_list)
+
+4. Python If Statement
+   - URL: https://www.w3schools.com/python/python_conditions.asp
+   - Used for: Conditional logic and decision making
+   - Examples in code: if statements throughout all files
+
+5. Python While Loops
+   - URL: https://www.w3schools.com/python/python_while_loops.asp
+   - Used for: Loop structures and iteration
+   - Examples in code: while True loops in scheduler simulation
+
+6. Python For Loops
+   - URL: https://www.w3schools.com/python/python_for_loops.asp
+   - Used for: Iteration over collections
+   - Examples in code: for queue_level in range(3), for process in processes
+
+7. Python Dictionaries
+   - URL: https://www.w3schools.com/python/python_dictionaries.asp
+   - Used for: Key-value data storage
+   - Examples in code: self.processes dictionary, results dictionary
+
+8. Python Lists
+   - URL: https://www.w3schools.com/python/python_lists.asp
+   - Used for: Ordered collections and queues
+   - Examples in code: self.queues lists, timeline list, results list
+
+9. Python List Methods
+   - URL: https://www.w3schools.com/python/python_lists_methods.asp
+   - Used for: List manipulation operations
+   - Examples in code: append(), pop(), sorted()
+
+10. Python String Methods
+    - URL: https://www.w3schools.com/python/python_strings_methods.asp
+    - Used for: String manipulation
+    - Examples in code: .strip(), .lower()
+
+11. Python String Formatting
+    - URL: https://www.w3schools.com/python/python_string_formatting.asp
+    - Used for: f-string formatting and text output
+    - Examples in code: f"Process {self.name}: arrival={self.arrival_time}"
+
+12. Python Try Except
+    - URL: https://www.w3schools.com/python/python_try_except.asp
+    - Used for: Error handling and exception management
+    - Examples in code: try-except blocks in input functions
+
+13. Python Variables
+    - URL: https://www.w3schools.com/python/python_variables.asp
+    - Used for: Variable assignment and data storage
+    - Examples in code: All variable assignments throughout the code
+
+14. Python Output
+    - URL: https://www.w3schools.com/python/python_output.asp
+    - Used for: Displaying information to the user
+    - Examples in code: print() statements
+
+15. Python Operators
+    - URL: https://www.w3schools.com/python/python_operators.asp
+    - Used for: Arithmetic and comparison operations
+    - Examples in code: +, -, <, >, ==, <= operators
+
+16. Python Tuples
+    - URL: https://www.w3schools.com/python/python_tuples.asp
+    - Used for: Immutable ordered collections
+    - Examples in code: Timeline tuples, process data tuples
+
+17. Python Dictionary Methods
+    - URL: https://www.w3schools.com/python/python_dictionaries_methods.asp
+    - Used for: Dictionary operations
+    - Examples in code: .keys() method
+
+18. Python Object Properties
+    - URL: https://www.w3schools.com/python/python_classes.asp
+    - Used for: Accessing object attributes
+    - Examples in code: process.waiting_time, self.current_time
+
+GEEKSFORGEEKS REFERENCES:
+========================
+
+1. Python Functions
+   - URL: https://www.geeksforgeeks.org/functions-in-python/
+   - Used for: Function definitions and advanced function concepts
+   - Examples in code: Custom function definitions
+
+2. Python Classes
+   - URL: https://www.geeksforgeeks.org/python-classes-and-objects/
+   - Used for: Object-oriented programming concepts
+   - Examples in code: SimpleMLFQScheduler class, Process class
+
+3. Python Methods
+   - URL: https://www.geeksforgeeks.org/python-classes-and-objects/
+   - Used for: Method calls and object behavior
+   - Examples in code: process.is_finished(), process.get_turnaround_time()
+
+4. Python Operators
+   - URL: https://www.geeksforgeeks.org/python-operators/
+   - Used for: Advanced operator usage and comparisons
+   - Examples in code: Complex comparison operations
+
+5. Python Lambda
+   - URL: https://www.geeksforgeeks.org/python-lambda/
+   - Used for: Anonymous functions
+   - Examples in code: lambda x: x[1] in sorted() function
+
+6. Python None
+   - URL: https://www.geeksforgeeks.org/python-none-keyword/
+   - Used for: None values and null handling
+   - Examples in code: return None statements
+
+7. Python hasattr
+   - URL: https://www.geeksforgeeks.org/python-hasattr-method/
+   - Used for: Attribute checking
+   - Examples in code: hasattr(process, 'last_ready_time')
+
+8. Python Exception Handling
+   - URL: https://www.geeksforgeeks.org/python-exception-handling/
+   - Used for: Error handling concepts
+   - Examples in code: try-except blocks
+
+9. Python String Operations
+   - URL: https://www.geeksforgeeks.org/python-string/
+   - Used for: String manipulation operations
+   - Examples in code: String multiplication "=" * 50
+
+ADDITIONAL LEARNING RESOURCES:
+==============================
+
+For beginners learning Python with this MLFQ scheduler project, these topics are particularly important:
+
+1. Object-Oriented Programming (OOP)
+   - Classes and objects
+   - Methods and attributes
+   - Encapsulation
+
+2. Data Structures
+   - Lists and their methods
+   - Dictionaries and key-value pairs
+   - Tuples for immutable data
+
+3. Control Flow
+   - Conditional statements (if-elif-else)
+   - Loops (for, while)
+   - Break and continue statements
+
+4. Error Handling
+   - Try-except blocks
+   - Exception types
+   - Graceful error recovery
+
+5. Function Design
+   - Parameter passing
+   - Return values
+   - Function organization
+
+6. Input/Output
+   - User input validation
+   - String formatting
+   - Display formatting
+
+HOW TO USE THIS REFERENCE LIST:
+==============================
+
+1. When you encounter a concept in the code that you don't understand, look it up in this list
+2. Visit the corresponding URL to learn more about that Python concept
+3. Practice the examples provided in the tutorials
+4. Apply what you learn by modifying the MLFQ scheduler code
+5. Use these resources to build your understanding of Python programming
+
+This reference list covers all the Python concepts used in the beginner-friendly MLFQ scheduler, providing a comprehensive learning path for Python beginners.
+
+Generated on: $(date)
+Project: Simple MLFQ CPU Scheduler for Python Beginners
