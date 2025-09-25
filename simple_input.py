@@ -19,17 +19,6 @@ def get_user_input(prompt):
         return ""
 
 def get_number(prompt, default_value=None, min_value=None, max_value=None):
-    """
-    Get a number from the user.
-    
-    Parameters:
-    - prompt: What to ask the user
-    - default_value: What to use if they press Enter without typing anything
-    - min_value: Smallest number allowed
-    - max_value: Largest number allowed
-    
-    Returns: The number the user entered, or the default if they didn't enter anything
-    """
     # Uses get_user_input() to get text from the user (GeeksforGeeks: Python Functions)
     # Uses .strip() to remove spaces from the beginning and end (W3Schools: Python String Methods)
     user_input = get_user_input(prompt).strip()

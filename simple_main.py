@@ -24,9 +24,13 @@ def get_processes_from_user():
     )
     
     # If they want the default number, use default processes
-    if num_processes == len(DEFAULT_PROCESSES):
+    use_samples = get_yes_or_no(
+        f"Use the built-in sample processes ({len(DEFAULT_PROCESSES)} items)?",
+        default_answer=True
+    )
+    if use_samples:
         print("Using default processes:")
-        for i, (name, arrival, burst, priority) in enumerate(DEFAULT_PROCESSES):
+        for (name, arrival, burst, priority) in DEFAULT_PROCESSES:
             print(f"  {name}: arrives at {arrival}, needs {burst} time units, priority {priority}")
         return DEFAULT_PROCESSES
     

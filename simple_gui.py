@@ -58,7 +58,7 @@ class MLFQGUI:
         self.setup_gui()
     
     def setup_gui(self):
-        """Create and arrange all the GUI elements."""
+        # Create and arrange all the GUI elements.
         # Uses tkinter widgets to create the interface (W3Schools: Python Tkinter Widgets)
         
         # Create main title
@@ -82,7 +82,7 @@ class MLFQGUI:
         self.setup_results_tab()
     
     def setup_configuration_tab(self):
-        """Create the combined configuration tab for processes and settings."""
+        # Create the combined configuration tab for processes and settings.
         # Uses tkinter.Frame to create a tab for process setup and scheduler settings
         config_frame = ttk.Frame(self.notebook)
         self.notebook.add(config_frame, text="Configuration")
@@ -99,7 +99,6 @@ class MLFQGUI:
         right_column = tk.Frame(main_container)
         right_column.pack(side='right', fill='both', expand=True, padx=(5, 0))
         
-        # ========== PROCESSES SECTION ==========
         # Process count section
         count_frame = tk.LabelFrame(left_column, text="Number of Processes", font=("Arial", 10, "bold"))
         count_frame.pack(fill='x', padx=5, pady=5)
@@ -108,6 +107,8 @@ class MLFQGUI:
         # Uses tkinter.Spinbox for number input (W3Schools: Python Tkinter Spinbox)
         count_spinbox = tk.Spinbox(count_frame, from_=1, to=20, textvariable=self.num_processes, width=10)
         count_spinbox.pack(side='left', padx=5)
+
+        self.num_processes.trace_add('write', lambda *args: self.on_num_processes_changed())
         
         # Default processes option
         default_frame = tk.LabelFrame(left_column, text="Process Options", font=("Arial", 10, "bold"))
@@ -138,6 +139,8 @@ class MLFQGUI:
         for col in columns:
             self.process_tree.heading(col, text=col)
             self.process_tree.column(col, width=100)
+
+        self.process_tree.bind("<Double-1>", self._on_tree_double_click)
         
         # Uses tkinter.Scrollbar for scrolling (W3Schools: Python Tkinter Scrollbar)
         scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self.process_tree.yview)
@@ -146,40 +149,6 @@ class MLFQGUI:
         self.process_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
-        # Add process form
-        form_frame = tk.Frame(self.custom_frame)
-        form_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Label(form_frame, text="Name:").grid(row=0, column=0, sticky='e', padx=5)
-        self.name_entry = tk.Entry(form_frame, width=10)
-        self.name_entry.grid(row=0, column=1, padx=5)
-        
-        tk.Label(form_frame, text="Arrival:").grid(row=0, column=2, sticky='e', padx=5)
-        self.arrival_entry = tk.Entry(form_frame, width=10)
-        self.arrival_entry.grid(row=0, column=3, padx=5)
-        
-        tk.Label(form_frame, text="Burst:").grid(row=0, column=4, sticky='e', padx=5)
-        self.burst_entry = tk.Entry(form_frame, width=10)
-        self.burst_entry.grid(row=0, column=5, padx=5)
-        
-        tk.Label(form_frame, text="Priority:").grid(row=0, column=6, sticky='e', padx=5)
-        self.priority_entry = tk.Entry(form_frame, width=10)
-        self.priority_entry.grid(row=0, column=7, padx=5)
-        
-        # Uses tkinter.Button for actions (W3Schools: Python Tkinter Button)
-        add_button = tk.Button(form_frame, text="Add Process", command=self.add_process)
-        add_button.grid(row=0, column=8, padx=5)
-        
-        clear_button = tk.Button(form_frame, text="Clear All", command=self.clear_processes)
-        clear_button.grid(row=0, column=9, padx=5)
-        
-        # Load default processes
-        self.load_default_processes()
-        
-        # Initially hide custom frame
-        self.toggle_custom_processes()
-        
-        # ========== SETTINGS SECTION ==========
         # Quantum setting
         quantum_frame = tk.LabelFrame(right_column, text="Time Quantum", font=("Arial", 10, "bold"))
         quantum_frame.pack(fill='x', padx=5, pady=5)
@@ -244,6 +213,8 @@ class MLFQGUI:
         help_text_widget.pack(fill='both', expand=True, padx=5, pady=5)
         help_text_widget.insert('1.0', help_text)
         help_text_widget.config(state='disabled')
+
+        
     
     def setup_simulation_tab(self):
         # Simulation tab
@@ -358,9 +329,11 @@ class MLFQGUI:
 
         self.update_settings_display()
 
+        self.toggle_custom_processes()
+
     
     def setup_results_tab(self):
-        """Create the results display tab."""
+        # Create the results display tab.
         # Uses tkinter.Frame to create a tab for showing results
         self.results_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.results_tab, text="Results")
@@ -407,77 +380,172 @@ class MLFQGUI:
         self.summary_text.pack(fill='x', padx=5, pady=5)
     
     def toggle_custom_processes(self):
-        """Show or hide the custom processes section based on checkbox."""
+        # Show or hide the custom processes section based on checkbox.
         # Uses tkinter widget methods to show/hide sections (GeeksforGeeks: Python Tkinter Widget Methods)
-        if self.use_default_processes.get():
-            self.custom_frame.pack_forget()  # Hide custom frame
-        else:
-            self.custom_frame.pack(fill='both', expand=True, padx=10, pady=5)  # Show custom frame
-    
-    def load_default_processes(self):
-        """Load the default processes into the custom processes list."""
-        # Uses list operations to clear and populate the process list (W3Schools: Python List Methods)
-        self.custom_processes.clear()
+        use_defaults = self.use_default_processes.get()
+        self.custom_frame.pack(fill='both', expand=True, padx=10, pady=5)
+
+        # Clear the table first
         for item in self.process_tree.get_children():
             self.process_tree.delete(item)
+
+        n = max(1, int(self.num_processes.get()))
+        if use_defaults:
+            # Exactly N defaults
+            for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+        else:
+            # Load saved custom rows then enforce N
+            for name, arrival, burst, priority in self.custom_processes:
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+            self._ensure_custom_row_count(n)
+
+        # Lock/unlock and manage Add/Delete according to rules
+        self.update_settings_display()
+    
+    
+    def _next_expected_name(self):
+        names = [self.process_tree.item(i, 'values')[0] for i in self.process_tree.get_children()]
+        nums = []
+        for nm in names:
+            if isinstance(nm, str) and nm.startswith('P') and nm[1:].isdigit():
+                nums.append(int(nm[1:]))
+        nxt = (max(nums) + 1) if nums else 1
+        return f"P{nxt}"
+
+    def _ensure_custom_row_count(self, target_n):
+        # Make table have exactly target_n rows; auto-add P# rows or trim from bottom.
+        current_iids = list(self.process_tree.get_children())
+        cur_n = len(current_iids)
+
+        # Add rows if fewer
+        while cur_n < target_n:
+            name = self._next_expected_name()
+            arrival, burst, priority = 0, 1, 1   # defaults for auto-filled rows
+            self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+            if not self.use_default_processes.get():
+                self.custom_processes.append((name, arrival, burst, priority))
+            cur_n += 1
+
+        # Trim rows if more (remove from bottom)
+        while cur_n > target_n:
+            iid = self.process_tree.get_children()[-1]
+            vals = self.process_tree.item(iid, 'values')
+            self.process_tree.delete(iid)
+            if not self.use_default_processes.get():
+                try:
+                    self.custom_processes.remove((vals[0], int(vals[1]), int(vals[2]), int(vals[3])))
+                except ValueError:
+                    pass
+            cur_n -= 1
+
+    def _on_tree_double_click(self, event):
+        # For process customizations
+        # Name column is locked to keep it incremental.
         
-        for name, arrival, burst, priority in DEFAULT_PROCESSES:
-            self.custom_processes.append((name, arrival, burst, priority))
-            self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
-    
-    def add_process(self):
-        """Add a new process to the custom processes list."""
+        # Block edits in defaults mode
+        if self.use_default_processes.get():
+            return
+
+        region = self.process_tree.identify("region", event.x, event.y)
+        if region != "cell":
+            return
+
+        row_id = self.process_tree.identify_row(event.y)
+        col_id = self.process_tree.identify_column(event.x)  # '#1'..'#4'
+        if not row_id or not col_id:
+            return
+
+        # Column mapping: #1=Name (locked), #2=Arrival, #3=Burst, #4=Priority
+        if col_id == "#1":
+            messagebox.showinfo("Name locked", "Process IDs are locked (P1…PN). Edit Arrival, Burst, or Priority instead.")
+            return
+
+        bbox = self.process_tree.bbox(row_id, col_id)
+        if not bbox:
+            return
+        x, y, w, h = bbox
+
+        # Current value
+        cur_vals = list(self.process_tree.item(row_id, "values"))
+        cur_text = cur_vals[int(col_id[1:]) - 1]
+
+        # Create an Entry overlayed on the cell
+        self._cell_editor = tk.Entry(self.process_tree)
+        self._cell_editor.insert(0, str(cur_text))
+        self._cell_editor.select_range(0, 'end')
+        self._cell_editor.focus_set()
+        self._cell_editor.place(x=x, y=y, width=w, height=h)
+
+        # Commit/cancel
+        self._cell_editor.bind("<Return>",      lambda e: self._commit_cell_edit(row_id, col_id))
+        self._cell_editor.bind("<KP_Enter>",    lambda e: self._commit_cell_edit(row_id, col_id))
+        self._cell_editor.bind("<Escape>",      lambda e: self._cancel_cell_edit())
+        self._cell_editor.bind("<FocusOut>",    lambda e: self._commit_cell_edit(row_id, col_id))
+
+    def _cancel_cell_edit(self):
+        if hasattr(self, "_cell_editor") and self._cell_editor:
+            self._cell_editor.destroy()
+            self._cell_editor = None
+
+    def _commit_cell_edit(self, row_id, col_id):
+        # Validate input, write back to Treeview, and sync self.custom_processes.
+        if not hasattr(self, "_cell_editor") or not self._cell_editor:
+            return
+        new_text = self._cell_editor.get().strip()
+        self._cell_editor.destroy()
+        self._cell_editor = None
+
+        # Only numeric columns can be edited
+        idx = int(col_id[1:]) - 1  # 1-based to 0-based
         try:
-            # Uses tkinter Entry widgets to get user input (W3Schools: Python Tkinter Entry)
-            name = self.name_entry.get().strip()
-            arrival = int(self.arrival_entry.get())
-            burst = int(self.burst_entry.get())
-            priority = int(self.priority_entry.get())
-            
-            # Validate input
-            if not name:
-                # Uses tkinter.messagebox for error messages (W3Schools: Python Tkinter Messagebox)
-                messagebox.showerror("Error", "Process name cannot be empty!")
-                return
-            
-            if arrival < 0:
-                messagebox.showerror("Error", "Arrival time cannot be negative!")
-                return
-            
-            if burst < 1:
-                messagebox.showerror("Error", "Burst time must be at least 1!")
-                return
-            
-            if priority < 1 or priority > 3:
-                messagebox.showerror("Error", "Priority must be between 1 and 3!")
-                return
-            
-            # Add to list
-            self.custom_processes.append((name, arrival, burst, priority))
-            self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
-            
-            # Clear form
-            self.name_entry.delete(0, 'end')
-            self.arrival_entry.delete(0, 'end')
-            self.burst_entry.delete(0, 'end')
-            self.priority_entry.delete(0, 'end')
-            
-            messagebox.showinfo("Success", f"Process {name} added successfully!")
-            
+            val = int(new_text)
         except ValueError:
-            messagebox.showerror("Error", "Please enter valid numbers for arrival, burst, and priority!")
-    
-    def clear_processes(self):
-        """Clear all custom processes."""
-        # Uses tkinter.messagebox.askyesno for confirmation (W3Schools: Python Tkinter Messagebox)
-        if messagebox.askyesno("Confirm", "Are you sure you want to clear all processes?"):
-            self.custom_processes.clear()
+            messagebox.showerror("Invalid input", "Please enter an integer value.")
+            return
+
+        # Validate per-column
+        if idx == 1:        # Arrival
+            if val < 0:
+                messagebox.showerror("Invalid Arrival", "Arrival must be ≥ 0.")
+                return
+        elif idx == 2:      # Burst
+            if val < 1:
+                messagebox.showerror("Invalid Burst", "Burst must be ≥ 1.")
+                return
+        elif idx == 3:      # Priority
+            if val < 1 or val > 3:
+                messagebox.showerror("Invalid Priority", "Priority must be between 1 and 3.")
+                return
+
+        # Write back to Treeview
+        values = list(self.process_tree.item(row_id, "values"))
+        values[idx] = str(val)
+        self.process_tree.item(row_id, values=values)
+
+        # Sync custom_processes (custom mode only)
+        if not self.use_default_processes.get():
+            rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
+            self.custom_processes = [(str(n), int(a), int(b), int(p)) for (n, a, b, p) in rows]
+
+    def on_num_processes_changed(self):
+        # Keep the table in sync with the requested count in both modes.
+        n = max(1, int(self.num_processes.get()))
+        if self.use_default_processes.get():
+            # repopulate exactly N defaults
             for item in self.process_tree.get_children():
                 self.process_tree.delete(item)
-            messagebox.showinfo("Success", "All processes cleared!")
+            for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+        else:
+            # enforce exact N in custom mode
+            self._ensure_custom_row_count(n)
+
+        self.update_settings_display()
+
     
     def update_settings_display(self):
-        """Update the settings display in the simulation tab."""
+        # Update the settings display in the simulation tab.
         # Uses tkinter Text widget methods to update display (W3Schools: Python Tkinter Text)
         self.settings_text.config(state='normal')
         self.settings_text.delete('1.0', 'end')
@@ -496,7 +564,7 @@ class MLFQGUI:
         self.settings_text.config(state='disabled')
     
     def run_simulation(self):
-        """Run the MLFQ simulation in a separate thread."""
+        # Run the MLFQ simulation in a separate thread.
         # Uses threading to prevent GUI freezing (GeeksforGeeks: Python Threading)
         self.run_button.config(state='disabled')
         self.status_label.config(text="Running simulation...")
@@ -507,14 +575,20 @@ class MLFQGUI:
         simulation_thread.start()
     
     def _run_simulation_background(self):
-        """Run the actual simulation in the background thread."""
+        # Run the actual simulation in the background thread.
         try:
             # Get processes to use
             if self.use_default_processes.get():
                 # Uses slicing to get the right number of default processes (GeeksforGeeks: Python List Slicing)
                 processes = DEFAULT_PROCESSES[:self.num_processes.get()]
             else:
-                processes = self.custom_processes[:self.num_processes.get()]
+                 # Read rows directly from the table to use the visible configuration
+                items = self.process_tree.get_children()
+                rows  = [self.process_tree.item(i, 'values') for i in items]
+                processes = [
+                    (str(name), int(arrival), int(burst), int(priority))
+                    for (name, arrival, burst, priority) in rows
+                ][:self.num_processes.get()]
             
             # Create scheduler
             scheduler = SimpleMLFQScheduler(
@@ -585,7 +659,7 @@ class MLFQGUI:
         messagebox.showerror("Simulation Error", f"An error occurred: {error_message}")
     
     def run(self):
-        """Start the GUI application."""
+        # Start the GUI application.
         # Uses tkinter.mainloop to start the GUI (W3Schools: Python Tkinter Mainloop)
         # This makes the window appear and handles user interactions
         self.root.mainloop()
@@ -622,7 +696,7 @@ class MLFQGUI:
 
     def _color_for(self, pid):
         if not pid:    # Idle color
-            return "#a6c8ff"
+            return self.idle_color
         
         # Use consistent color mapping based on process name
         if pid not in self.color_map:
@@ -633,7 +707,7 @@ class MLFQGUI:
         return self.color_map[pid]
 
     def _append_multirow_cells(self, fr):
-        """Draw one time-slice for Q0, Q1, Q2, and CPU."""
+        # Draw one time-slice for Q0, Q1, Q2, and CPU.
         if not hasattr(self, 'timeline_canvas'):
             return
         c = self.timeline_canvas
@@ -696,7 +770,7 @@ class MLFQGUI:
         self._g_idx = idx + 1
 
     def _calculate_font_size(self, cell_width):
-        """Calculate appropriate font size based on cell width to prevent text overlap."""
+        # Calculate appropriate font size based on cell width to prevent text overlap.
         # Base font size calculation
         if cell_width >= 80:
             return 10
@@ -711,7 +785,7 @@ class MLFQGUI:
 
 
     def play_animation(self):
-        """Start automated animation playback."""
+        # Start automated animation playback.
         if not self.frames:
             return
         self._animating = True
@@ -722,7 +796,7 @@ class MLFQGUI:
         self._schedule_next_tick()
 
     def pause_animation(self):
-        """Pause the automated animation."""
+        # Pause the automated animation.
         self._animating = False
         if self._anim_after_id is not None:
             self.root.after_cancel(self._anim_after_id)
@@ -734,7 +808,7 @@ class MLFQGUI:
         self.update_tick_display()
 
     def reset_animation(self):
-        """Reset animation to the beginning."""
+        # Reset animation to the beginning.
         self._animating = False
         if self._anim_after_id is not None:
             self.root.after_cancel(self._anim_after_id)
@@ -757,7 +831,7 @@ class MLFQGUI:
         self.update_tick_display()
 
     def next_tick(self):
-        """Move to the next tick manually."""
+        # Move to the next tick manually.
         if not self.frames or self.frame_i >= len(self.frames) - 1:
             return
         
@@ -771,7 +845,7 @@ class MLFQGUI:
             self.next_tick_btn.config(state='disabled')
 
     def previous_tick(self):
-        """Move to the previous tick manually."""
+        # Move to the previous tick manually.
         if not self.frames or self.frame_i <= 0:
             return
         
@@ -785,13 +859,13 @@ class MLFQGUI:
             self.prev_tick_btn.config(state='disabled')
 
     def update_speed(self, value):
-        """Update animation speed based on slider value."""
+        # Update animation speed based on slider value.
         # Convert slider value (1-10) to delay in milliseconds
         # 1 = fastest (50ms), 10 = slowest (500ms)
         self.anim_delay_ms = int(50 + (int(value) - 1) * 50)
 
     def update_tick_display(self):
-        """Update the tick display label."""
+        # Update the tick display label.
         if not self.frames:
             self.tick_label.config(text="Tick: 0/0")
             return
@@ -801,7 +875,7 @@ class MLFQGUI:
         self.tick_label.config(text=f"Tick: {current_tick}/{total_ticks}")
 
     def _start_animation(self):
-        """Begin auto-playing the animation once frames are ready."""
+        # Begin auto-playing the animation once frames are ready.
         self.frame_i = 0
         self.anim_total = len(self.frames) if self.frames else 0
         self._init_timeline_canvas()
@@ -823,10 +897,10 @@ class MLFQGUI:
 
         fr = self.frames[self.frame_i]
 
-        # update listboxes (if you already have that logic)
+        # Update listboxes
         self._fill_queue_listboxes(fr)
 
-        # draw one column for Q0, Q1, Q2, CPU
+        # Draw one column for Q0, Q1, Q2, CPU
         self._append_multirow_cells(fr)        
 
         self.frame_i += 1
@@ -855,7 +929,7 @@ class MLFQGUI:
 
 
     def _populate_results_tab(self):
-        """Fill the Results tab using self.timeline and self.results."""
+        # Fill the Results tab using self.timeline and self.results.
         # ---- Enhanced Timeline text ----
         self.timeline_text.delete('1.0', 'end')
         
@@ -954,7 +1028,7 @@ class MLFQGUI:
 
 
     def _on_animation_finished(self):
-        """Called once the last frame is drawn."""
+        # Called once the last frame is drawn.
         self.status_label.config(text="Animation finished.")
         # now populate and reveal the Results tab
         self._populate_results_tab()
@@ -1022,7 +1096,7 @@ class MLFQGUI:
 
 
 def main():
-    """Main function to start the GUI application."""
+    # Main function to start the GUI application.
     # Uses try-except to handle any startup errors (W3Schools: Python Try Except)
     try:
         # Creates and runs the GUI application
