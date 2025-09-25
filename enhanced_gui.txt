@@ -1,0 +1,1260 @@
+# Enhanced Interactive GUI for MLFQ Scheduler
+# Modern, visually appealing interface with animations and better UX
+
+import tkinter as tk
+from tkinter import ttk, messagebox, scrolledtext, filedialog
+import threading
+import os
+import time
+from simple_process import Process, DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_DEMOTE_THRESHOLD, DEFAULT_AGING_THRESHOLD
+from simple_scheduler import SimpleMLFQScheduler
+
+class EnhancedMLFQGUI:
+    """Enhanced MLFQ GUI with modern design and interactive features."""
+    
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("🚀 MLFQ CPU Scheduler - Enhanced Edition")
+        self.root.geometry("1200x800")
+        self.root.minsize(1200, 800)
+        self.root.configure(bg='#2c3e50')
+        
+        # Modern color scheme
+        self.colors = {
+            'primary': '#3498db',
+            'secondary': '#2c3e50', 
+            'success': '#27ae60',
+            'warning': '#f39c12',
+            'danger': '#e74c3c',
+            'light': '#ecf0f1',
+            'dark': '#34495e',
+            'accent': '#9b59b6'
+        }
+        
+        # Variables
+        self.num_processes = tk.IntVar(value=len(DEFAULT_PROCESSES))
+        self.quantum_q0 = tk.IntVar(value=2)
+        self.quantum_q1 = tk.IntVar(value=4)
+        self.quantum_q2 = tk.IntVar(value=8)
+        self.demote_threshold = tk.IntVar(value=DEFAULT_DEMOTE_THRESHOLD)
+        self.aging_threshold = tk.IntVar(value=DEFAULT_AGING_THRESHOLD)
+        self.preempt = tk.BooleanVar(value=True)
+        self.use_default_processes = tk.BooleanVar(value=True)
+        
+        # Animation state
+        self.frames = []
+        self.frame_i = 0
+        self._g_idx = 0
+        self._animating = False
+        self.anim_delay_ms = 200
+        self._anim_after_id = None
+        
+        # Process data
+        self.custom_processes = []
+        self.loaded_file_path = None
+        self.loaded_file_processes = []
+        
+        # Results
+        self.timeline = []
+        self.results = []
+        
+        self.setup_gui()
+    
+    def setup_gui(self):
+        """Create the enhanced GUI layout."""
+        # Header with gradient effect
+        self.create_header()
+        
+        # Main content area with tabs
+        self.create_main_content()
+        
+        # Status bar
+        self.create_status_bar()
+    
+    def create_header(self):
+        """Create an attractive header."""
+        header_frame = tk.Frame(self.root, bg=self.colors['primary'], height=80)
+        header_frame.pack(fill='x', padx=0, pady=0)
+        header_frame.pack_propagate(False)
+        
+        # Title with icon
+        title_frame = tk.Frame(header_frame, bg=self.colors['primary'])
+        title_frame.pack(expand=True)
+        
+        title_label = tk.Label(
+            title_frame,
+            text="🚀 MLFQ CPU Scheduler",
+            font=("Arial", 24, "bold"),
+            bg=self.colors['primary'],
+            fg='white'
+        )
+        title_label.pack(pady=10)
+        
+        subtitle_label = tk.Label(
+            title_frame,
+            text="Enhanced Interactive Simulation",
+            font=("Arial", 12),
+            bg=self.colors['primary'],
+            fg='#bdc3c7'
+        )
+        subtitle_label.pack()
+    
+    def create_main_content(self):
+        """Create the main content area with modern tabs."""
+        # Create notebook with custom style
+        style = ttk.Style()
+        style.theme_use('clam')
+        
+        # Configure notebook style
+        style.configure('TNotebook', background=self.colors['light'])
+        style.configure('TNotebook.Tab', padding=[20, 10])
+        
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill='both', expand=True, padx=10, pady=5)
+        
+        # Create tabs
+        self.setup_configuration_tab()
+        self.setup_simulation_tab()
+        self.setup_results_tab()
+    
+    def create_status_bar(self):
+        """Create a status bar at the bottom."""
+        self.status_frame = tk.Frame(self.root, bg=self.colors['dark'], height=30)
+        self.status_frame.pack(fill='x', side='bottom')
+        self.status_frame.pack_propagate(False)
+        
+        self.status_label = tk.Label(
+            self.status_frame,
+            text="Ready to run simulation",
+            font=("Arial", 10),
+            bg=self.colors['dark'],
+            fg='white',
+            anchor='w'
+        )
+        self.status_label.pack(side='left', padx=10, pady=5)
+        
+        self.tick_label = tk.Label(
+            self.status_frame,
+            text="Tick: 0/0",
+            font=("Arial", 10, "bold"),
+            bg=self.colors['dark'],
+            fg=self.colors['accent'],
+            anchor='e'
+        )
+        self.tick_label.pack(side='right', padx=10, pady=5)
+    
+    def setup_configuration_tab(self):
+        """Create the enhanced configuration tab."""
+        config_frame = ttk.Frame(self.notebook)
+        self.notebook.add(config_frame, text="⚙️ Configuration")
+        
+        # Create main container with scrollbar
+        canvas = tk.Canvas(config_frame, bg=self.colors['light'])
+        scrollbar = ttk.Scrollbar(config_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.colors['light'])
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Left and right columns
+        left_column = tk.Frame(scrollable_frame, bg=self.colors['light'])
+        right_column = tk.Frame(scrollable_frame, bg=self.colors['light'])
+        
+        left_column.pack(side='left', fill='both', expand=True, padx=(10, 5), pady=10)
+        right_column.pack(side='right', fill='both', expand=True, padx=(5, 10), pady=10)
+        
+        # Process configuration
+        self.create_process_section(left_column)
+        
+        # Scheduler settings
+        self.create_scheduler_section(right_column)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+    def create_process_section(self, parent):
+        """Create the process configuration section."""
+        # Process count
+        count_frame = self.create_card(parent, "📊 Number of Processes")
+        count_frame.pack(fill='x', pady=5)
+        
+        tk.Label(count_frame, text="How many processes?", font=("Arial", 11)).pack(anchor='w', padx=10, pady=5)
+        
+        count_frame_inner = tk.Frame(count_frame, bg='white')
+        count_frame_inner.pack(fill='x', padx=10, pady=(0, 10))
+        
+        self.count_spinbox = tk.Spinbox(count_frame_inner, from_=1, to=20, textvariable=self.num_processes, 
+                                       width=10, font=("Arial", 11))
+        self.count_spinbox.pack(side='left')
+        
+        self.num_processes.trace_add('write', lambda *args: self.on_num_processes_changed())
+        
+        # Process options
+        options_frame = self.create_card(parent, "🎯 Process Options")
+        options_frame.pack(fill='x', pady=5)
+        
+        # Default processes checkbox
+        default_check = tk.Checkbutton(
+            options_frame,
+            text="Use default processes (recommended for beginners)",
+            variable=self.use_default_processes,
+            command=self.toggle_custom_processes,
+            font=("Arial", 11),
+            bg='white'
+        )
+        default_check.pack(anchor='w', padx=10, pady=5)
+        
+        # File upload section
+        file_frame = tk.Frame(options_frame, bg='white')
+        file_frame.pack(fill='x', padx=10, pady=(0, 10))
+        
+        tk.Label(file_frame, text="Or upload a .txt file:", font=("Arial", 10), bg='white').pack(anchor='w')
+        
+        file_btn_frame = tk.Frame(file_frame, bg='white')
+        file_btn_frame.pack(fill='x', pady=5)
+        
+        self.upload_btn = tk.Button(file_btn_frame, text="📁 Upload File", 
+                                   command=self.upload_process_file,
+                                   font=("Arial", 10), bg=self.colors['primary'], fg='white',
+                                   relief='flat', padx=15, pady=5)
+        self.upload_btn.pack(side='left')
+        
+        self.file_label = tk.Label(file_btn_frame, text="No file loaded", 
+                                  font=("Arial", 9), fg='#7f8c8d', bg='white')
+        self.file_label.pack(side='left', padx=(10, 0))
+        
+        self.clear_file_btn = tk.Button(file_btn_frame, text="✖", 
+                                        command=self.clear_uploaded_file,
+                                        font=("Arial", 9), bg=self.colors['danger'], fg='white',
+                                        relief='flat', state='disabled', width=3)
+        self.clear_file_btn.pack(side='left', padx=(5, 0))
+        
+        # Custom processes table
+        self.custom_frame = self.create_card(parent, "✏️ Custom Processes")
+        self.custom_frame.pack(fill='both', expand=True, pady=5)
+        
+        # Help text
+        help_frame = tk.Frame(self.custom_frame, bg='white')
+        help_frame.pack(fill='x', padx=10, pady=5)
+        
+        self.help_label = tk.Label(help_frame, 
+                                  text="💡 Double-click on Arrival, Burst, or Priority to edit values", 
+                                  font=("Arial", 9), fg='#7f8c8d', bg='white')
+        self.help_label.pack(anchor='w')
+        
+        # Process table
+        table_frame = tk.Frame(self.custom_frame, bg='white')
+        table_frame.pack(fill='both', expand=True, padx=10, pady=(0, 10))
+        
+        columns = ('Name', 'Arrival', 'Burst', 'Priority')
+        self.process_tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=8)
+        
+        for col in columns:
+            self.process_tree.heading(col, text=col)
+            self.process_tree.column(col, width=100)
+        
+        self.process_tree.bind("<Double-1>", self._on_tree_double_click)
+        
+        scrollbar_table = ttk.Scrollbar(table_frame, orient='vertical', command=self.process_tree.yview)
+        self.process_tree.configure(yscrollcommand=scrollbar_table.set)
+        
+        self.process_tree.pack(side='left', fill='both', expand=True)
+        scrollbar_table.pack(side='right', fill='y')
+    
+    def create_card(self, parent, title):
+        """Create a modern card-style frame."""
+        card_frame = tk.Frame(parent, bg='white', relief='flat', bd=1)
+        
+        # Title
+        title_frame = tk.Frame(card_frame, bg=self.colors['primary'], height=40)
+        title_frame.pack(fill='x')
+        title_frame.pack_propagate(False)
+        
+        title_label = tk.Label(title_frame, text=title, font=("Arial", 12, "bold"),
+                              bg=self.colors['primary'], fg='white')
+        title_label.pack(expand=True)
+        
+        return card_frame
+    
+    def create_scheduler_section(self, parent):
+        """Create the scheduler settings section."""
+        # Time Quantum settings
+        quantum_frame = self.create_card(parent, "⏱️ Time Quantum per Queue")
+        quantum_frame.pack(fill='x', pady=5)
+        
+        tk.Label(quantum_frame, text="Higher priority queues get shorter time slices", 
+                font=("Arial", 10), bg='white').pack(anchor='w', padx=10, pady=5)
+        
+        # Q0 quantum
+        q0_frame = tk.Frame(quantum_frame, bg='white')
+        q0_frame.pack(fill='x', padx=10, pady=2)
+        
+        tk.Label(q0_frame, text="Q0 (Highest Priority):", font=("Arial", 10, "bold"), bg='white').pack(side='left')
+        q0_spinbox = tk.Spinbox(q0_frame, from_=1, to=20, textvariable=self.quantum_q0, 
+                               width=8, font=("Arial", 10))
+        q0_spinbox.pack(side='left', padx=(10, 0))
+        
+        # Q1 quantum
+        q1_frame = tk.Frame(quantum_frame, bg='white')
+        q1_frame.pack(fill='x', padx=10, pady=2)
+        
+        tk.Label(q1_frame, text="Q1 (Medium Priority):", font=("Arial", 10, "bold"), bg='white').pack(side='left')
+        q1_spinbox = tk.Spinbox(q1_frame, from_=1, to=20, textvariable=self.quantum_q1, 
+                               width=8, font=("Arial", 10))
+        q1_spinbox.pack(side='left', padx=(10, 0))
+        
+        # Q2 quantum
+        q2_frame = tk.Frame(quantum_frame, bg='white')
+        q2_frame.pack(fill='x', padx=10, pady=(2, 10))
+        
+        tk.Label(q2_frame, text="Q2 (Lowest Priority):", font=("Arial", 10, "bold"), bg='white').pack(side='left')
+        q2_spinbox = tk.Spinbox(q2_frame, from_=1, to=20, textvariable=self.quantum_q2, 
+                               width=8, font=("Arial", 10))
+        q2_spinbox.pack(side='left', padx=(10, 0))
+        
+        # Demotion threshold
+        demote_frame = self.create_card(parent, "⬇️ Demotion Threshold")
+        demote_frame.pack(fill='x', pady=5)
+        
+        tk.Label(demote_frame, text="How long before moving to lower priority?", 
+                font=("Arial", 10), bg='white').pack(anchor='w', padx=10, pady=5)
+        
+        demote_spinbox = tk.Spinbox(demote_frame, from_=1, to=50, textvariable=self.demote_threshold, 
+                                   width=10, font=("Arial", 10))
+        demote_spinbox.pack(anchor='w', padx=10, pady=(0, 10))
+        
+        # Aging threshold
+        aging_frame = self.create_card(parent, "⬆️ Aging Threshold")
+        aging_frame.pack(fill='x', pady=5)
+        
+        tk.Label(aging_frame, text="How long before moving to higher priority?", 
+                font=("Arial", 10), bg='white').pack(anchor='w', padx=10, pady=5)
+        
+        aging_spinbox = tk.Spinbox(aging_frame, from_=0, to=50, textvariable=self.aging_threshold, 
+                                  width=10, font=("Arial", 10))
+        aging_spinbox.pack(anchor='w', padx=10, pady=(0, 10))
+        
+        # Preemption setting
+        preempt_frame = self.create_card(parent, "⚡ Preemption")
+        preempt_frame.pack(fill='x', pady=5)
+        
+        tk.Label(preempt_frame, text="Interrupt running processes for higher priority ones?", 
+                font=("Arial", 10), bg='white').pack(anchor='w', padx=10, pady=5)
+        
+        preempt_frame_inner = tk.Frame(preempt_frame, bg='white')
+        preempt_frame_inner.pack(fill='x', padx=10, pady=(0, 10))
+        
+        preempt_yes = tk.Radiobutton(preempt_frame_inner, text="Yes (Recommended)", 
+                                    variable=self.preempt, value=True, font=("Arial", 10), bg='white')
+        preempt_yes.pack(anchor='w')
+        
+        preempt_no = tk.Radiobutton(preempt_frame_inner, text="No", 
+                                   variable=self.preempt, value=False, font=("Arial", 10), bg='white')
+        preempt_no.pack(anchor='w')
+        
+        # Help section
+        help_frame = self.create_card(parent, "❓ Help")
+        help_frame.pack(fill='both', expand=True, pady=5)
+        
+        help_text = """
+MLFQ Settings Explained:
+
+• Time Quantum: How long each process runs before switching
+• Demotion Threshold: When processes move to lower priority
+• Aging Threshold: When processes move to higher priority  
+• Preemption: Whether to interrupt for higher priority
+
+File Format (.txt):
+ProcessName ArrivalTime BurstTime Priority
+Example: P1 0 5 1
+
+Tip: Use default values for your first simulation!
+        """
+        
+        help_text_widget = tk.Text(help_frame, height=12, wrap='word', bg='#f8f9fa', 
+                                  font=("Arial", 9), relief='flat')
+        help_text_widget.pack(fill='both', expand=True, padx=10, pady=10)
+        help_text_widget.insert('1.0', help_text)
+        help_text_widget.config(state='disabled')
+    
+    def setup_simulation_tab(self):
+        """Create the enhanced simulation tab."""
+        self.simulation_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.simulation_tab, text="🎮 Simulation")
+        
+        # Controls section
+        controls_frame = self.create_card(self.simulation_tab, "🎛️ Controls")
+        controls_frame.pack(fill='x', padx=10, pady=10)
+        
+        # Main control buttons
+        main_controls = tk.Frame(controls_frame, bg='white')
+        main_controls.pack(fill='x', padx=10, pady=10)
+        
+        self.play_btn = tk.Button(main_controls, text="▶️ Play", 
+                                 command=self.on_play_clicked,
+                                 font=("Arial", 12, "bold"), bg=self.colors['success'], fg='white',
+                                 relief='flat', padx=20, pady=10)
+        self.play_btn.pack(side='left', padx=5)
+        
+        self.pause_btn = tk.Button(main_controls, text="⏸️ Pause", 
+                                  command=self.pause_animation, state='disabled',
+                                  font=("Arial", 12, "bold"), bg=self.colors['warning'], fg='white',
+                                  relief='flat', padx=20, pady=10)
+        self.pause_btn.pack(side='left', padx=5)
+        
+        self.reset_btn = tk.Button(main_controls, text="🔄 Reset", 
+                                  command=self.reset_animation, state='disabled',
+                                  font=("Arial", 12, "bold"), bg=self.colors['danger'], fg='white',
+                                  relief='flat', padx=20, pady=10)
+        self.reset_btn.pack(side='left', padx=5)
+        
+        # Step controls
+        step_controls = tk.Frame(controls_frame, bg='white')
+        step_controls.pack(fill='x', padx=10, pady=(0, 10))
+        
+        self.prev_tick_btn = tk.Button(step_controls, text="⏮️ Prev", 
+                                      command=self.previous_tick, state='disabled',
+                                      font=("Arial", 10), bg=self.colors['dark'], fg='white',
+                                      relief='flat', padx=15, pady=5)
+        self.prev_tick_btn.pack(side='left', padx=5)
+        
+        self.next_tick_btn = tk.Button(step_controls, text="Next ⏭️", 
+                                      command=self.next_tick, state='disabled',
+                                      font=("Arial", 10), bg=self.colors['dark'], fg='white',
+                                      relief='flat', padx=15, pady=5)
+        self.next_tick_btn.pack(side='left', padx=5)
+        
+        # Speed control
+        speed_frame = tk.Frame(controls_frame, bg='white')
+        speed_frame.pack(fill='x', padx=10, pady=(0, 10))
+        
+        tk.Label(speed_frame, text="Speed:", font=("Arial", 10), bg='white').pack(side='left')
+        self.speed_var = tk.IntVar(value=5)
+        self.speed_slider = tk.Scale(speed_frame, from_=1, to=10, orient='horizontal', 
+                                   variable=self.speed_var, command=self.update_speed, 
+                                   length=200, font=("Arial", 9), bg='white')
+        self.speed_slider.pack(side='left', padx=10)
+        
+        # Queue displays
+        queues_frame = self.create_card(self.simulation_tab, "📋 Queue Status")
+        queues_frame.pack(fill='x', padx=10, pady=5)
+        
+        queues_container = tk.Frame(queues_frame, bg='white')
+        queues_container.pack(fill='x', padx=10, pady=10)
+        
+        def create_queue_display(parent, title, color):
+            frame = tk.Frame(parent, bg=color, relief='raised', bd=2)
+            tk.Label(frame, text=title, font=("Arial", 10, "bold"), bg=color, fg='white').pack()
+            lb = tk.Listbox(frame, height=4, font=("Arial", 9))
+            lb.pack(fill='both', expand=True, padx=5, pady=5)
+            return frame, lb
+        
+        self.q0_frame, self.lb_q0 = create_queue_display(queues_container, "Q0 (Highest)", self.colors['success'])
+        self.q1_frame, self.lb_q1 = create_queue_display(queues_container, "Q1 (Medium)", self.colors['warning'])
+        self.q2_frame, self.lb_q2 = create_queue_display(queues_container, "Q2 (Lowest)", self.colors['danger'])
+        self.cpu_frame, self.lb_cpu = create_queue_display(queues_container, "CPU (Running)", self.colors['accent'])
+        
+        self.q0_frame.grid(row=0, column=0, sticky='nsew', padx=5)
+        self.q1_frame.grid(row=0, column=1, sticky='nsew', padx=5)
+        self.q2_frame.grid(row=0, column=2, sticky='nsew', padx=5)
+        self.cpu_frame.grid(row=0, column=3, sticky='nsew', padx=5)
+        
+        queues_container.grid_columnconfigure(0, weight=1)
+        queues_container.grid_columnconfigure(1, weight=1)
+        queues_container.grid_columnconfigure(2, weight=1)
+        queues_container.grid_columnconfigure(3, weight=1)
+        
+        # Timeline visualization
+        timeline_frame = self.create_card(self.simulation_tab, "📊 Timeline Visualization")
+        timeline_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        
+        timeline_container = tk.Frame(timeline_frame, bg='white')
+        timeline_container.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        self.timeline_canvas = tk.Canvas(timeline_container, height=200, bg="white", relief='sunken', bd=2)
+        
+        timeline_scrollbar = ttk.Scrollbar(timeline_container, orient='horizontal', command=self.timeline_canvas.xview)
+        self.timeline_canvas.configure(xscrollcommand=timeline_scrollbar.set)
+        
+        self.timeline_canvas.pack(side='top', fill='both', expand=True)
+        timeline_scrollbar.pack(side='bottom', fill='x')
+        
+        # Current settings display
+        settings_frame = self.create_card(self.simulation_tab, "⚙️ Current Settings")
+        settings_frame.pack(fill='x', padx=10, pady=5)
+        
+        self.settings_text = tk.Text(settings_frame, height=6, wrap='word', bg='#f8f9fa', 
+                                    font=("Arial", 10), relief='flat')
+        self.settings_text.pack(fill='x', padx=10, pady=10)
+        
+        self.update_settings_display()
+        self.toggle_custom_processes()
+    
+    def setup_results_tab(self):
+        """Create the enhanced results tab."""
+        self.results_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.results_tab, text="📈 Results")
+        
+        # Timeline section
+        timeline_frame = self.create_card(self.results_tab, "📊 Execution Timeline")
+        timeline_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        
+        self.timeline_text = scrolledtext.ScrolledText(timeline_frame, height=15, wrap='word', 
+                                                      font=("Courier", 10), relief='flat')
+        self.timeline_text.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        # Results table section
+        results_table_frame = self.create_card(self.results_tab, "📋 Process Results")
+        results_table_frame.pack(fill='x', padx=10, pady=5)
+        
+        columns = ('Process', 'Arrival', 'Burst', 'Priority', 'First Start', 'Completion', 'Turnaround', 'Waiting', 'Response')
+        self.results_tree = ttk.Treeview(results_table_frame, columns=columns, show='headings', height=6)
+        
+        column_widths = {'Process': 60, 'Arrival': 60, 'Burst': 60, 'Priority': 60, 'First Start': 80, 'Completion': 80, 'Turnaround': 80, 'Waiting': 70, 'Response': 70}
+        for col in columns:
+            self.results_tree.heading(col, text=col)
+            self.results_tree.column(col, width=column_widths.get(col, 60))
+        
+        results_scrollbar = ttk.Scrollbar(results_table_frame, orient='vertical', command=self.results_tree.yview)
+        self.results_tree.configure(yscrollcommand=results_scrollbar.set)
+        
+        self.results_tree.pack(side='left', fill='both', expand=True, padx=10, pady=10)
+        results_scrollbar.pack(side='right', fill='y', pady=10)
+        
+        # Summary section
+        summary_frame = self.create_card(self.results_tab, "📊 Summary Statistics")
+        summary_frame.pack(fill='x', padx=10, pady=5)
+        
+        self.summary_text = tk.Text(summary_frame, height=4, wrap='word', bg='#f8f9fa', 
+                                   font=("Arial", 10), relief='flat')
+        self.summary_text.pack(fill='x', padx=10, pady=10)
+    
+    # Include all the methods from the original GUI (abbreviated for space)
+    def toggle_custom_processes(self):
+        """Toggle between default and custom processes."""
+        use_defaults = self.use_default_processes.get()
+        
+        if use_defaults:
+            self.count_spinbox.config(state='disabled')
+            self.help_label.config(text="Using default processes - editing disabled")
+        else:
+            self.count_spinbox.config(state='normal')
+            self.help_label.config(text="💡 Double-click on Arrival, Burst, or Priority to edit values")
+        
+        n = max(1, int(self.num_processes.get()))
+        
+        if not use_defaults:
+            if self.loaded_file_processes:
+                self.custom_processes = list(self.loaded_file_processes)
+            else:
+                visible_rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
+                if visible_rows:
+                    self.custom_processes = [(str(nm), int(a), int(b), int(p)) for (nm, a, b, p) in visible_rows]
+                if not self.custom_processes:
+                    self.custom_processes = list(DEFAULT_PROCESSES[:n])
+        
+        for item in self.process_tree.get_children():
+            self.process_tree.delete(item)
+        
+        if use_defaults:
+            for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+        else:
+            for name, arrival, burst, priority in self.custom_processes:
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+        
+        self.update_settings_display()
+    
+    def upload_process_file(self):
+        """Upload and parse a .txt file containing process definitions."""
+        file_path = filedialog.askopenfilename(
+            title="Select Process File",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            processes = self.parse_process_file(file_path)
+            
+            if not processes:
+                messagebox.showerror("Invalid File", "No valid processes found in the file.")
+                return
+            
+            self.loaded_file_path = file_path
+            self.loaded_file_processes = processes
+            
+            filename = os.path.basename(file_path)
+            self.file_label.config(text=f"Loaded: {filename} ({len(processes)} processes)")
+            self.clear_file_btn.config(state='normal')
+            
+            self.num_processes.set(len(processes))
+            self.use_default_processes.set(False)
+            self.toggle_custom_processes()
+            
+            messagebox.showinfo("File Loaded", f"Successfully loaded {len(processes)} processes from {filename}")
+            
+        except Exception as e:
+            messagebox.showerror("File Error", f"Error loading file: {str(e)}")
+    
+    def parse_process_file(self, file_path):
+        """Parse a .txt file containing process definitions."""
+        processes = []
+        
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+        
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            
+            if not line or line.startswith('#'):
+                continue
+            
+            try:
+                parts = line.split()
+                if len(parts) != 4:
+                    raise ValueError(f"Line {line_num}: Expected 4 values (name, arrival, burst, priority)")
+                
+                name = parts[0]
+                arrival = int(parts[1])
+                burst = int(parts[2])
+                priority = int(parts[3])
+                
+                if arrival < 0:
+                    raise ValueError(f"Line {line_num}: Arrival time must be >= 0")
+                if burst < 1:
+                    raise ValueError(f"Line {line_num}: Burst time must be >= 1")
+                if priority < 1 or priority > 3:
+                    raise ValueError(f"Line {line_num}: Priority must be between 1 and 3")
+                
+                processes.append((name, arrival, burst, priority))
+                
+            except ValueError as e:
+                raise ValueError(f"Line {line_num}: {str(e)}")
+            except Exception as e:
+                raise ValueError(f"Line {line_num}: Invalid format - {str(e)}")
+        
+        return processes
+    
+    def clear_uploaded_file(self):
+        """Clear the uploaded file and return to default processes."""
+        self.loaded_file_path = None
+        self.loaded_file_processes = []
+        
+        self.file_label.config(text="No file loaded")
+        self.clear_file_btn.config(state='disabled')
+        
+        self.use_default_processes.set(True)
+        self.toggle_custom_processes()
+        
+        messagebox.showinfo("File Cleared", "Uploaded file cleared. Using default processes.")
+    
+    def on_num_processes_changed(self):
+        """Handle changes to the number of processes."""
+        n = max(1, int(self.num_processes.get()))
+        if self.use_default_processes.get():
+            for item in self.process_tree.get_children():
+                self.process_tree.delete(item)
+            for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+        else:
+            if not self.custom_processes:
+                self.custom_processes = list(DEFAULT_PROCESSES[:n])
+            self._ensure_custom_row_count(n)
+        
+        self.update_settings_display()
+    
+    def _ensure_custom_row_count(self, target_n):
+        """Ensure the table has exactly target_n rows."""
+        current_iids = list(self.process_tree.get_children())
+        cur_n = len(current_iids)
+        
+        while cur_n < target_n:
+            next_name = f"P{cur_n + 1}"
+            name, arrival, burst, priority = DEFAULT_PROCESSES[cur_n] if cur_n < len(DEFAULT_PROCESSES) else (next_name, 0, 1, 1)
+            self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+            if not self.use_default_processes.get():
+                self.custom_processes.append((name, arrival, burst, priority))
+            cur_n += 1
+        
+        while cur_n > target_n:
+            iid = self.process_tree.get_children()[-1]
+            vals = self.process_tree.item(iid, 'values')
+            self.process_tree.delete(iid)
+            if not self.use_default_processes.get():
+                try:
+                    self.custom_processes.remove((vals[0], int(vals[1]), int(vals[2]), int(vals[3])))
+                except ValueError:
+                    pass
+            cur_n -= 1
+    
+    def _on_tree_double_click(self, event):
+        """Handle double-click editing of process table."""
+        if self.use_default_processes.get():
+            messagebox.showinfo("Editing Disabled", "Process editing is disabled when using default processes.\nUncheck 'Use default processes' to enable editing.")
+            return
+        
+        region = self.process_tree.identify("region", event.x, event.y)
+        if region != "cell":
+            return
+        
+        row_id = self.process_tree.identify_row(event.y)
+        col_id = self.process_tree.identify_column(event.x)
+        if not row_id or not col_id:
+            return
+        
+        if col_id == "#1":
+            messagebox.showinfo("Name Locked", "Process names are automatically generated (P1, P2, P3...).\nDouble-click on Arrival, Burst, or Priority columns to edit those values.")
+            return
+        
+        bbox = self.process_tree.bbox(row_id, col_id)
+        if not bbox:
+            return
+        
+        x, y, w, h = bbox
+        cur_vals = list(self.process_tree.item(row_id, "values"))
+        cur_text = cur_vals[int(col_id[1:]) - 1]
+        
+        self._cell_editor = tk.Entry(self.process_tree)
+        self._cell_editor.insert(0, str(cur_text))
+        self._cell_editor.select_range(0, 'end')
+        self._cell_editor.focus_set()
+        self._cell_editor.place(x=x, y=y, width=w, height=h)
+        
+        self._cell_editor.bind("<Return>", lambda e: self._commit_cell_edit(row_id, col_id))
+        self._cell_editor.bind("<KP_Enter>", lambda e: self._commit_cell_edit(row_id, col_id))
+        self._cell_editor.bind("<Escape>", lambda e: self._cancel_cell_edit())
+        self._cell_editor.bind("<FocusOut>", lambda e: self._commit_cell_edit(row_id, col_id))
+    
+    def _cancel_cell_edit(self):
+        """Cancel cell editing."""
+        if hasattr(self, "_cell_editor") and self._cell_editor:
+            self._cell_editor.destroy()
+            self._cell_editor = None
+    
+    def _commit_cell_edit(self, row_id, col_id):
+        """Commit cell editing."""
+        if not hasattr(self, "_cell_editor") or not self._cell_editor:
+            return
+        
+        new_text = self._cell_editor.get().strip()
+        self._cell_editor.destroy()
+        self._cell_editor = None
+        
+        idx = int(col_id[1:]) - 1
+        try:
+            val = int(new_text)
+        except ValueError:
+            messagebox.showerror("Invalid input", "Please enter an integer value.")
+            return
+        
+        if idx == 1:  # Arrival
+            if val < 0:
+                messagebox.showerror("Invalid Arrival", "Arrival must be ≥ 0.")
+                return
+        elif idx == 2:  # Burst
+            if val < 1:
+                messagebox.showerror("Invalid Burst", "Burst must be ≥ 1.")
+                return
+        elif idx == 3:  # Priority
+            if val < 1 or val > 3:
+                messagebox.showerror("Invalid Priority", "Priority must be between 1 and 3.")
+                return
+        
+        values = list(self.process_tree.item(row_id, "values"))
+        values[idx] = str(val)
+        self.process_tree.item(row_id, values=values)
+        
+        if not self.use_default_processes.get():
+            rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
+            self.custom_processes = [(str(n), int(a), int(b), int(p)) for (n, a, b, p) in rows]
+    
+    def update_settings_display(self):
+        """Update the settings display."""
+        self.settings_text.config(state='normal')
+        self.settings_text.delete('1.0', 'end')
+        
+        if self.loaded_file_path:
+            filename = os.path.basename(self.loaded_file_path)
+            process_source = f"Loaded from file: {filename}"
+        elif self.use_default_processes.get():
+            process_source = "Using default processes"
+        else:
+            process_source = "Using custom processes"
+        
+        settings_info = f"""
+Current Settings:
+• Number of Processes: {self.num_processes.get()}
+• Process Source: {process_source}
+• Time Quantum Q0 (Highest): {self.quantum_q0.get()}
+• Time Quantum Q1 (Medium): {self.quantum_q1.get()}
+• Time Quantum Q2 (Lowest): {self.quantum_q2.get()}
+• Demotion Threshold: {self.demote_threshold.get()}
+• Aging Threshold: {self.aging_threshold.get()}
+• Preemption: {'Yes' if self.preempt.get() else 'No'}
+        """
+        
+        self.settings_text.insert('1.0', settings_info)
+        self.settings_text.config(state='disabled')
+    
+    def on_play_clicked(self):
+        """Handle play button click."""
+        if not self.frames or self.frame_i >= len(self.frames):
+            self.status_label.config(text="Running simulation...")
+            self.play_btn.config(state='disabled')
+            self.run_simulation()
+        else:
+            self.play_animation()
+    
+    def run_simulation(self):
+        """Run the MLFQ simulation in a separate thread."""
+        self.play_btn.config(state='disabled')
+        self.status_label.config(text="Running simulation...")
+        
+        simulation_thread = threading.Thread(target=self._run_simulation_background)
+        simulation_thread.daemon = True
+        simulation_thread.start()
+    
+    def _run_simulation_background(self):
+        """Run the actual simulation in the background thread."""
+        try:
+            if self.use_default_processes.get():
+                processes = DEFAULT_PROCESSES[:self.num_processes.get()]
+            else:
+                items = self.process_tree.get_children()
+                rows = [self.process_tree.item(i, 'values') for i in items]
+                processes = [
+                    (str(name), int(arrival), int(burst), int(priority))
+                    for (name, arrival, burst, priority) in rows
+                ][:self.num_processes.get()]
+            
+            scheduler = SimpleMLFQScheduler(
+                quantums=[self.quantum_q0.get(), self.quantum_q1.get(), self.quantum_q2.get()],
+                demote_threshold=self.demote_threshold.get(),
+                aging_threshold=self.aging_threshold.get(),
+                preempt=self.preempt.get()
+            )
+            
+            timeline, results, frames = scheduler.simulate_with_frames(processes)
+            
+            self.root.after(0, self._display_results, timeline, results, frames)
+            
+        except Exception as e:
+            self.root.after(0, self._show_error, str(e))
+    
+    def _display_results(self, timeline, results, frames):
+        """Display simulation results."""
+        self.notebook.select(self.simulation_tab)
+        
+        self.timeline = timeline
+        self.results = results
+        self.frames = frames or []
+        
+        self.status_label.config(text="Simulation completed. Playing animation…")
+        
+        self.frame_i = 0
+        self._g_idx = 0
+        
+        if hasattr(self, 'timeline_canvas'):
+            self.timeline_canvas.delete('all')
+        for lb in (getattr(self, 'lb_q0', None),
+                   getattr(self, 'lb_q1', None),
+                   getattr(self, 'lb_q2', None),
+                   getattr(self, 'lb_cpu', None)):
+            if lb: lb.delete(0, 'end')
+        
+        self._init_timeline_canvas()
+        self.timeline_canvas.update_idletasks()
+        self._cell_w = None
+        self.anim_total = len(self.frames)
+        
+        self.play_animation()
+        self.reset_btn.config(state='normal')
+    
+    def _show_error(self, error_message):
+        """Show simulation error."""
+        self.play_btn.config(state='normal')
+        self.pause_btn.config(state='disabled')
+        self.reset_btn.config(state='disabled')
+        self.status_label.config(text="Simulation failed!")
+        messagebox.showerror("Simulation Error", f"An error occurred: {error_message}")
+    
+    def play_animation(self):
+        """Start automated animation playback."""
+        if not self.frames:
+            return
+        self._animating = True
+        self.play_btn.config(state='disabled')
+        self.pause_btn.config(state='normal')
+        self.prev_tick_btn.config(state='disabled')
+        self.next_tick_btn.config(state='disabled')
+        self._schedule_next_tick()
+    
+    def pause_animation(self):
+        """Pause the automated animation."""
+        self._animating = False
+        if self._anim_after_id is not None:
+            self.root.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        self.play_btn.config(state='normal')
+        self.pause_btn.config(state='disabled')
+        self.prev_tick_btn.config(state='normal')
+        self.next_tick_btn.config(state='normal')
+        self.update_tick_display()
+    
+    def reset_animation(self):
+        """Reset animation to the beginning."""
+        self._animating = False
+        if self._anim_after_id is not None:
+            self.root.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        
+        self.frame_i = 0
+        self._g_idx = 0
+        
+        if hasattr(self, 'timeline_canvas'):
+            self._init_timeline_canvas()
+            if self.frames:
+                self._append_multirow_cells(self.frames[0])
+        
+        self.play_btn.config(state='normal')
+        self.pause_btn.config(state='disabled')
+        self.prev_tick_btn.config(state='disabled')
+        self.next_tick_btn.config(state='normal' if len(self.frames) > 1 else 'disabled')
+        self.update_tick_display()
+    
+    def next_tick(self):
+        """Move to the next tick manually."""
+        if not self.frames or self.frame_i >= len(self.frames) - 1:
+            return
+        
+        self.frame_i += 1
+        self._repaint_animation_frame()
+        self.update_tick_display()
+        
+        self.prev_tick_btn.config(state='normal')
+        if self.frame_i >= len(self.frames) - 1:
+            self.next_tick_btn.config(state='disabled')
+    
+    def previous_tick(self):
+        """Move to the previous tick manually."""
+        if not self.frames or self.frame_i <= 0:
+            return
+        
+        self.frame_i -= 1
+        
+        if hasattr(self, 'timeline_canvas'):
+            self._init_timeline_canvas()
+            self._g_idx = 0
+            for i in range(self.frame_i + 1):
+                self._append_multirow_cells(self.frames[i])
+        
+        fr = self.frames[self.frame_i]
+        def fill(lb, items):
+            if not lb: return
+            lb.delete(0, 'end')
+            for it in items: lb.insert('end', it)
+        
+        fill(getattr(self, 'lb_q0', None), fr['queues'][0])
+        fill(getattr(self, 'lb_q1', None), fr['queues'][1])
+        fill(getattr(self, 'lb_q2', None), fr['queues'][2])
+        fill(getattr(self, 'lb_cpu', None), [fr['running']] if fr['running'] else [])
+        
+        self.update_tick_display()
+        
+        self.next_tick_btn.config(state='normal')
+        if self.frame_i <= 0:
+            self.prev_tick_btn.config(state='disabled')
+    
+    def update_speed(self, value):
+        """Update animation speed based on slider value."""
+        try:
+            v = max(1, min(10, int(value)))
+        except Exception:
+            v = 5
+        self.anim_delay_ms = 50 * (11 - v)
+        
+        if self._animating:
+            if self._anim_after_id is not None:
+                self.root.after_cancel(self._anim_after_id)
+                self._anim_after_id = None
+            self._schedule_next_tick()
+    
+    def update_tick_display(self):
+        """Update the tick display label."""
+        if not self.frames:
+            self.tick_label.config(text="Tick: 0/0")
+            return
+        
+        total_ticks = len(self.frames)
+        current_tick = self.frame_i + 1
+        self.tick_label.config(text=f"Tick: {current_tick}/{total_ticks}")
+    
+    def _schedule_next_tick(self):
+        """Schedule the next animation tick."""
+        if self._anim_after_id is not None:
+            self.root.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        self._anim_after_id = self.root.after(self.anim_delay_ms, self._animate_step)
+    
+    def _animate_step(self):
+        """Execute one animation step."""
+        if not self.frames or self.frame_i >= self.anim_total:
+            self._anim_after_id = None
+            self._on_animation_finished()
+            return
+        
+        fr = self.frames[self.frame_i]
+        self._fill_queue_listboxes(fr)
+        self._append_multirow_cells(fr)
+        
+        self.frame_i += 1
+        self.update_tick_display()
+        
+        if self.frame_i >= self.anim_total:
+            self.next_tick_btn.config(state='disabled')
+        else:
+            self.next_tick_btn.config(state='normal')
+        
+        self.prev_tick_btn.config(state='normal')
+        self._schedule_next_tick()
+    
+    def _fill_queue_listboxes(self, fr):
+        """Fill queue listboxes with current frame data."""
+        def fill(lb, items):
+            if not lb: return
+            lb.delete(0, 'end')
+            for it in items:
+                lb.insert('end', it)
+        fill(getattr(self, 'lb_q0', None), fr['queues'][0])
+        fill(getattr(self, 'lb_q1', None), fr['queues'][1])
+        fill(getattr(self, 'lb_q2', None), fr['queues'][2])
+        fill(getattr(self, 'lb_cpu', None), [fr['running']] if fr['running'] else [])
+    
+    def _repaint_animation_frame(self):
+        """Repaint the current animation frame."""
+        if not self.frames:
+            return
+        fr = self.frames[self.frame_i]
+        self._fill_queue_listboxes(fr)
+        self._append_multirow_cells(fr)
+    
+    def _append_multirow_cells(self, fr):
+        """Draw one time-slice for Q0, Q1, Q2, and CPU."""
+        if not hasattr(self, 'timeline_canvas'):
+            return
+        c = self.timeline_canvas
+        row_h = getattr(self, '_row_h', 30)
+        left_w = getattr(self, '_left_w', 70)
+        
+        if getattr(self, '_cell_w', None) is None:
+            width = max(600, c.winfo_width())
+            total_frames = max(1, len(self.frames))
+            min_text_width = 50
+            available_width = width - left_w
+            optimal_width = max(min_text_width, available_width // total_frames)
+            
+            if optimal_width < min_text_width:
+                optimal_width = min_text_width
+                self._total_timeline_width = left_w + (total_frames * optimal_width)
+            
+            self._cell_w = optimal_width
+        
+        unit = self._cell_w
+        idx = getattr(self, '_g_idx', 0)
+        
+        q0_head = fr['queues'][0][0] if fr['queues'][0] else None
+        q1_head = fr['queues'][1][0] if fr['queues'][1] else None
+        q2_head = fr['queues'][2][0] if fr['queues'][2] else None
+        cpu_pid = fr['running'] if fr['running'] else None
+        
+        rows = [q0_head, q1_head, q2_head, cpu_pid]
+        
+        x0 = left_w + idx * unit
+        x1 = left_w + (idx + 1) * unit
+        
+        font_size = self._calculate_font_size(unit)
+        
+        colors = [self.colors['success'], self.colors['warning'], self.colors['danger'], self.colors['accent']]
+        
+        for r, pid in enumerate(rows):
+            y0 = r * row_h
+            y1 = y0 + row_h - 1
+            col = colors[r] if pid else '#ecf0f1'
+            c.create_rectangle(x0, y0, x1, y1, fill=col, outline='black')
+            
+            text = pid if pid else "Idle"
+            c.create_text((x0 + x1)/2, y0 + row_h/2,
+                        text=text,
+                        font=("Arial", font_size))
+        
+        tick_font_size = max(6, min(8, font_size - 1))
+        c.create_text(x0 + 5, 4*row_h + 8, text=str(idx), anchor='w', font=("Arial", tick_font_size))
+        
+        self._g_idx = idx + 1
+    
+    def _calculate_font_size(self, cell_width):
+        """Calculate appropriate font size based on cell width."""
+        if cell_width >= 80:
+            return 10
+        elif cell_width >= 60:
+            return 9
+        elif cell_width >= 40:
+            return 8
+        elif cell_width >= 30:
+            return 7
+        else:
+            return 6
+    
+    def _init_timeline_canvas(self):
+        """Initialize the timeline canvas."""
+        if not hasattr(self, 'timeline_canvas'):
+            return
+        c = self.timeline_canvas
+        c.delete('all')
+        
+        self._row_h = 30
+        self._left_w = 70
+        rows = ["Q0", "Q1", "Q2", "CPU"]
+        
+        c.config(height=self._row_h * 4 + 18)
+        
+        if hasattr(self, '_total_timeline_width'):
+            timeline_width = self._total_timeline_width
+        else:
+            total_frames = len(self.frames) if self.frames else 1
+            min_cell_width = 50
+            timeline_width = self._left_w + (total_frames * min_cell_width)
+        
+        c.configure(scrollregion=(0, 0, timeline_width, self._row_h * 4 + 18))
+        
+        width = c.winfo_width() or 800
+        for i, label in enumerate(rows):
+            y0 = i * self._row_h
+            y1 = y0 + self._row_h
+            c.create_rectangle(0, y0, self._left_w, y1, fill="#f7f7f7", outline="black")
+            c.create_text(self._left_w - 5, (y0 + y1) / 2, text=label,
+                        anchor='e', font=("Arial", 9, "bold"))
+            c.create_line(self._left_w, y1, timeline_width, y1, fill="#cccccc")
+        
+        c.create_text(5, self._row_h * 4 + 8, text="t", anchor='w', font=("Arial", 8))
+        self._g_idx = 0
+    
+    def _on_animation_finished(self):
+        """Called once the last frame is drawn."""
+        self.status_label.config(text="Animation finished.")
+        self._populate_results_tab()
+        self.notebook.select(self.results_tab)
+        self.play_btn.config(state='normal')
+    
+    def _populate_results_tab(self):
+        """Fill the Results tab using timeline and results."""
+        self.timeline_text.delete('1.0', 'end')
+        
+        timeline_text = "=" * 80 + "\n"
+        timeline_text += "MLFQ CPU SCHEDULER - EXECUTION TIMELINE\n"
+        timeline_text += "=" * 80 + "\n\n"
+        
+        timeline_text += "SCHEDULING RULES:\n"
+        timeline_text += "-" * 40 + "\n"
+        timeline_text += f"• Time Quantum Q0 (Highest): {self.quantum_q0.get()} time units\n"
+        timeline_text += f"• Time Quantum Q1 (Medium): {self.quantum_q1.get()} time units\n"
+        timeline_text += f"• Time Quantum Q2 (Lowest): {self.quantum_q2.get()} time units\n"
+        timeline_text += f"• Demotion Threshold: {self.demote_threshold.get()} time units\n"
+        timeline_text += f"• Aging Threshold: {self.aging_threshold.get()} time units\n"
+        timeline_text += f"• Preemption: {'Enabled' if self.preempt.get() else 'Disabled'}\n\n"
+        
+        timeline_text += "PROCESS DETAILS:\n"
+        timeline_text += "-" * 40 + "\n"
+        timeline_text += f"{'Process':<10} {'Priority':<8} {'Arrival':<7} {'Burst':<6} {'Completion':<10} {'Turnaround':<10} {'Waiting':<8}\n"
+        timeline_text += "-" * 70 + "\n"
+        
+        for r in self.results:
+            timeline_text += f"{r['name']:<10} {r['priority']:<8} {r['arrival']:<7} {r['burst']:<6} "
+            timeline_text += f"{r['completion'] if r['completion'] is not None else 'N/A':<10} "
+            timeline_text += f"{r['turnaround'] if r['turnaround'] is not None else 'N/A':<10} "
+            timeline_text += f"{r['waiting']:<8}\n"
+        
+        timeline_text += "\n"
+        
+        timeline_text += "EXECUTION TIMELINE:\n"
+        timeline_text += "-" * 40 + "\n"
+        timeline_text += "Time | Process | Queue | Action\n"
+        timeline_text += "-" * 40 + "\n"
+        
+        if self.timeline:
+            for start, end, process, queue in self.timeline:
+                action = f"Executing in Q{queue}" if queue < 3 else "Running on CPU"
+                timeline_text += f"{start:4d} | {process:<7} | Q{queue:<4} | {action}\n"
+        else:
+            timeline_text += "No processes were executed.\n"
+        
+        timeline_text += "\n" + "=" * 80 + "\n"
+        
+        self.timeline_text.insert('1.0', timeline_text)
+        
+        # Results table
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+        
+        for r in self.results:
+            self.results_tree.insert('', 'end', values=(
+                r['name'], r['arrival'], r['burst'], r['priority'],
+                r['first_start'] if r['first_start'] is not None else "N/A",
+                r['completion'] if r['completion'] is not None else "N/A",
+                r['turnaround'] if r['turnaround'] is not None else "N/A",
+                r['waiting'],
+                r['response'] if r['response'] is not None else "N/A"
+            ))
+        
+        # Summary
+        self.summary_text.delete('1.0', 'end')
+        completed = [r for r in self.results if r['completion'] is not None]
+        if completed:
+            avg_wait = sum(r['waiting'] for r in completed) / len(completed)
+            avg_ta = sum(r['turnaround'] for r in completed) / len(completed)
+            avg_resp = sum(r['response'] for r in completed if r['response'] is not None) / len(completed)
+            total_bt = sum(r['burst'] for r in completed)
+            makespan = max(r['completion'] for r in completed) - min(r['arrival'] for r in completed)
+            cpu_util = (total_bt / makespan) * 100 if makespan > 0 else 100.0
+            summary_text = (
+                f"Summary Statistics:\n"
+                f"• Average Waiting Time: {avg_wait:.2f}\n"
+                f"• Average Turnaround Time: {avg_ta:.2f}\n"
+                f"• Average Response Time: {avg_resp:.2f}\n"
+                f"• CPU Utilization: {cpu_util:.2f}%\n"
+                f"• Total Processes: {len(completed)}\n"
+                f"• Total Simulation Time: {makespan}\n"
+            )
+        else:
+            summary_text = "No processes completed."
+        self.summary_text.insert('1.0', summary_text)
+    
+    def run(self):
+        """Start the GUI application."""
+        self.root.mainloop()
+
+
+def main():
+    """Main function to start the enhanced GUI."""
+    try:
+        app = EnhancedMLFQGUI()
+        app.run()
+    except Exception as e:
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror("Startup Error", f"Failed to start the application: {e}")
+        root.destroy()
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass

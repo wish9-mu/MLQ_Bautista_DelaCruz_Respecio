@@ -2,8 +2,9 @@
 # This creates a user-friendly graphical interface using tkinter
 
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, filedialog
 import threading
+import os
 from simple_process import Process, DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_DEMOTE_THRESHOLD, DEFAULT_AGING_THRESHOLD
 from simple_scheduler import SimpleMLFQScheduler
 
@@ -30,7 +31,10 @@ class MLFQGUI:
         # Uses variables to store user input (GeeksforGeeks: Python Tkinter Variables)
         # These automatically update the GUI when changed
         self.num_processes = tk.IntVar(value=len(DEFAULT_PROCESSES))
-        self.quantum = tk.IntVar(value=DEFAULT_QUANTUM)
+        # Separate quantums for each queue (Q0=highest priority, Q2=lowest priority)
+        self.quantum_q0 = tk.IntVar(value=2)  # Highest priority - shortest quantum
+        self.quantum_q1 = tk.IntVar(value=4)  # Medium priority - medium quantum  
+        self.quantum_q2 = tk.IntVar(value=8)  # Lowest priority - longest quantum
         self.demote_threshold = tk.IntVar(value=DEFAULT_DEMOTE_THRESHOLD)
         self.aging_threshold = tk.IntVar(value=DEFAULT_AGING_THRESHOLD)
         self.preempt = tk.BooleanVar(value=True)
@@ -54,6 +58,10 @@ class MLFQGUI:
         
         # Uses list to store custom processes created by user
         self.custom_processes = []
+        
+        # Track loaded file
+        self.loaded_file_path = None
+        self.loaded_file_processes = []
         
         self.setup_gui()
     
@@ -105,8 +113,8 @@ class MLFQGUI:
         
         tk.Label(count_frame, text="How many processes?").pack(side='left', padx=5)
         # Uses tkinter.Spinbox for number input (W3Schools: Python Tkinter Spinbox)
-        count_spinbox = tk.Spinbox(count_frame, from_=1, to=20, textvariable=self.num_processes, width=10)
-        count_spinbox.pack(side='left', padx=5)
+        self.count_spinbox = tk.Spinbox(count_frame, from_=1, to=20, textvariable=self.num_processes, width=10)
+        self.count_spinbox.pack(side='left', padx=5)
 
         self.num_processes.trace_add('write', lambda *args: self.on_num_processes_changed())
         
@@ -123,9 +131,43 @@ class MLFQGUI:
         )
         default_check.pack(anchor='w', padx=5, pady=2)
         
+        # File upload section
+        file_frame = tk.Frame(default_frame)
+        file_frame.pack(fill='x', padx=5, pady=5)
+        
+        tk.Label(file_frame, text="Or upload a .txt file with custom processes:", font=("Arial", 9)).pack(anchor='w')
+        
+        file_btn_frame = tk.Frame(file_frame)
+        file_btn_frame.pack(fill='x', pady=2)
+        
+        self.upload_btn = tk.Button(file_btn_frame, text="📁 Upload .txt File", 
+                                   command=self.upload_process_file, 
+                                   font=("Arial", 9), bg="#3498db", fg="white")
+        self.upload_btn.pack(side='left', padx=(0, 5))
+        
+        self.file_label = tk.Label(file_btn_frame, text="No file loaded", 
+                                  font=("Arial", 8), fg="#666666")
+        self.file_label.pack(side='left')
+        
+        self.clear_file_btn = tk.Button(file_btn_frame, text="✖ Clear", 
+                                        command=self.clear_uploaded_file, 
+                                        font=("Arial", 8), state='disabled')
+        self.clear_file_btn.pack(side='left', padx=(5, 0))
+        
         # Custom processes section
         self.custom_frame = tk.LabelFrame(left_column, text="Custom Processes", font=("Arial", 10, "bold"))
         self.custom_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Help text for editing
+        help_text_frame = tk.Frame(self.custom_frame)
+        help_text_frame.pack(fill='x', padx=5, pady=(5, 0))
+        
+        self.help_label = tk.Label(help_text_frame, 
+                                  text="💡 Double-click on Arrival, Burst, or Priority to edit values", 
+                                  font=("Arial", 9), 
+                                  fg="#666666",
+                                  wraplength=300)
+        self.help_label.pack(anchor='w')
         
         # Process list with scrollbar
         list_frame = tk.Frame(self.custom_frame)
@@ -149,15 +191,33 @@ class MLFQGUI:
         self.process_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
         
-        # Quantum setting
-        quantum_frame = tk.LabelFrame(right_column, text="Time Quantum", font=("Arial", 10, "bold"))
+        # Time Quantum settings for each queue
+        quantum_frame = tk.LabelFrame(right_column, text="Time Quantum per Queue", font=("Arial", 10, "bold"))
         quantum_frame.pack(fill='x', padx=5, pady=5)
         
-        tk.Label(quantum_frame, text="How much time should each process get before switching?").pack(anchor='w', padx=5, pady=2)
-        tk.Label(quantum_frame, text="(Like giving each person 5 minutes to speak)").pack(anchor='w', padx=20, pady=2)
+        tk.Label(quantum_frame, text="How much time should each process get in each queue?").pack(anchor='w', padx=5, pady=2)
+        tk.Label(quantum_frame, text="(Higher priority queues get shorter time slices)").pack(anchor='w', padx=20, pady=2)
         
-        quantum_spinbox = tk.Spinbox(quantum_frame, from_=1, to=20, textvariable=self.quantum, width=10)
-        quantum_spinbox.pack(anchor='w', padx=5, pady=2)
+        # Q0 (Highest Priority) quantum
+        q0_frame = tk.Frame(quantum_frame)
+        q0_frame.pack(fill='x', padx=5, pady=2)
+        tk.Label(q0_frame, text="Q0 (Highest Priority):", font=("Arial", 9, "bold")).pack(side='left')
+        q0_spinbox = tk.Spinbox(q0_frame, from_=1, to=20, textvariable=self.quantum_q0, width=8)
+        q0_spinbox.pack(side='left', padx=(5, 0))
+        
+        # Q1 (Medium Priority) quantum
+        q1_frame = tk.Frame(quantum_frame)
+        q1_frame.pack(fill='x', padx=5, pady=2)
+        tk.Label(q1_frame, text="Q1 (Medium Priority):", font=("Arial", 9, "bold")).pack(side='left')
+        q1_spinbox = tk.Spinbox(q1_frame, from_=1, to=20, textvariable=self.quantum_q1, width=8)
+        q1_spinbox.pack(side='left', padx=(5, 0))
+        
+        # Q2 (Lowest Priority) quantum
+        q2_frame = tk.Frame(quantum_frame)
+        q2_frame.pack(fill='x', padx=5, pady=2)
+        tk.Label(q2_frame, text="Q2 (Lowest Priority):", font=("Arial", 9, "bold")).pack(side='left')
+        q2_spinbox = tk.Spinbox(q2_frame, from_=1, to=20, textvariable=self.quantum_q2, width=8)
+        q2_spinbox.pack(side='left', padx=(5, 0))
         
         # Demotion threshold
         demote_frame = tk.LabelFrame(right_column, text="Demotion Threshold", font=("Arial", 10, "bold"))
@@ -204,6 +264,10 @@ class MLFQGUI:
         • Demotion Threshold: How long a process can run before moving to lower priority
         • Aging Threshold: How long a process waits before moving to higher priority
         • Preemption: Whether to interrupt running processes for higher priority ones
+        
+        File Upload Format (.txt):
+        ProcessName ArrivalTime BurstTime Priority
+        Example: P1 0 5 1
         
         Tip: Use the default values for your first simulation!
         """
@@ -381,17 +445,30 @@ class MLFQGUI:
         use_defaults = self.use_default_processes.get()
         self.custom_frame.pack(fill='both', expand=True, padx=10, pady=5)
 
+        # Enable/disable the number of processes spinbox
+        if use_defaults:
+            self.count_spinbox.config(state='disabled')
+            self.help_label.config(text="Using default processes - editing disabled")
+        else:
+            self.count_spinbox.config(state='normal')
+            self.help_label.config(text="💡 Double-click on Arrival, Burst, or Priority to edit values")
+
         n = max(1, int(self.num_processes.get()))
 
         # If we're switching FROM defaults TO custom, seed custom_processes
         # with whatever is currently visible (the default rows).
         if not use_defaults:
-            visible_rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
-            if visible_rows:
-                self.custom_processes = [(str(nm), int(a), int(b), int(p)) for (nm, a, b, p) in visible_rows]
-            # If nothing visible yet (e.g., first time), fall back to defaults[:n]
-            if not self.custom_processes:
-                self.custom_processes = list(DEFAULT_PROCESSES[:n])
+            # If we have a loaded file, use those processes
+            if self.loaded_file_processes:
+                self.custom_processes = list(self.loaded_file_processes)
+            else:
+                # Otherwise, use currently visible rows
+                visible_rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
+                if visible_rows:
+                    self.custom_processes = [(str(nm), int(a), int(b), int(p)) for (nm, a, b, p) in visible_rows]
+                # If nothing visible yet (e.g., first time), fall back to defaults[:n]
+                if not self.custom_processes:
+                    self.custom_processes = list(DEFAULT_PROCESSES[:n])
 
         # Clear table before repopulating
         for item in self.process_tree.get_children():
@@ -408,6 +485,111 @@ class MLFQGUI:
             self._ensure_custom_row_count(n)
 
         self.update_settings_display()
+    
+    def upload_process_file(self):
+        """Upload and parse a .txt file containing process definitions."""
+        # Open file dialog
+        file_path = filedialog.askopenfilename(
+            title="Select Process File",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            # Parse the file
+            processes = self.parse_process_file(file_path)
+            
+            if not processes:
+                messagebox.showerror("Invalid File", "No valid processes found in the file.")
+                return
+            
+            # Store the loaded file info
+            self.loaded_file_path = file_path
+            self.loaded_file_processes = processes
+            
+            # Update UI
+            filename = os.path.basename(file_path)
+            self.file_label.config(text=f"Loaded: {filename} ({len(processes)} processes)")
+            self.clear_file_btn.config(state='normal')
+            
+            # Update the process count to match loaded file
+            self.num_processes.set(len(processes))
+            
+            # Switch to custom mode and populate with loaded processes
+            self.use_default_processes.set(False)
+            self.toggle_custom_processes()
+            
+            messagebox.showinfo("File Loaded", f"Successfully loaded {len(processes)} processes from {filename}")
+            
+        except Exception as e:
+            messagebox.showerror("File Error", f"Error loading file: {str(e)}")
+    
+    def parse_process_file(self, file_path):
+        """Parse a .txt file containing process definitions.
+        
+        Expected format (one process per line):
+        ProcessName ArrivalTime BurstTime Priority
+        
+        Example:
+        P1 0 5 1
+        P2 2 3 2
+        P3 4 7 1
+        """
+        processes = []
+        
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+        
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            
+            # Skip empty lines and comments
+            if not line or line.startswith('#'):
+                continue
+            
+            try:
+                parts = line.split()
+                if len(parts) != 4:
+                    raise ValueError(f"Line {line_num}: Expected 4 values (name, arrival, burst, priority)")
+                
+                name = parts[0]
+                arrival = int(parts[1])
+                burst = int(parts[2])
+                priority = int(parts[3])
+                
+                # Validate values
+                if arrival < 0:
+                    raise ValueError(f"Line {line_num}: Arrival time must be >= 0")
+                if burst < 1:
+                    raise ValueError(f"Line {line_num}: Burst time must be >= 1")
+                if priority < 1 or priority > 3:
+                    raise ValueError(f"Line {line_num}: Priority must be between 1 and 3")
+                
+                processes.append((name, arrival, burst, priority))
+                
+            except ValueError as e:
+                raise ValueError(f"Line {line_num}: {str(e)}")
+            except Exception as e:
+                raise ValueError(f"Line {line_num}: Invalid format - {str(e)}")
+        
+        return processes
+    
+    def clear_uploaded_file(self):
+        """Clear the uploaded file and return to default processes."""
+        self.loaded_file_path = None
+        self.loaded_file_processes = []
+        
+        # Update UI
+        self.file_label.config(text="No file loaded")
+        self.clear_file_btn.config(state='disabled')
+        
+        # Return to default processes
+        self.use_default_processes.set(True)
+        self.toggle_custom_processes()
+        
+        messagebox.showinfo("File Cleared", "Uploaded file cleared. Using default processes.")
     
     
     def _next_expected_name(self):
@@ -463,6 +645,7 @@ class MLFQGUI:
         
         # Block edits in defaults mode
         if self.use_default_processes.get():
+            messagebox.showinfo("Editing Disabled", "Process editing is disabled when using default processes.\nUncheck 'Use default processes' to enable editing.")
             return
 
         region = self.process_tree.identify("region", event.x, event.y)
@@ -476,7 +659,7 @@ class MLFQGUI:
 
         # Column mapping: #1=Name (locked), #2=Arrival, #3=Burst, #4=Priority
         if col_id == "#1":
-            messagebox.showinfo("Name locked", "Process IDs are locked (P1…PN). Edit Arrival, Burst, or Priority instead.")
+            messagebox.showinfo("Name Locked", "Process names are automatically generated (P1, P2, P3...).\nDouble-click on Arrival, Burst, or Priority columns to edit those values.")
             return
 
         bbox = self.process_tree.bbox(row_id, col_id)
@@ -576,14 +759,25 @@ class MLFQGUI:
         self.settings_text.config(state='normal')
         self.settings_text.delete('1.0', 'end')
         
+        # Determine process source
+        if self.loaded_file_path:
+            filename = os.path.basename(self.loaded_file_path)
+            process_source = f"Loaded from file: {filename}"
+        elif self.use_default_processes.get():
+            process_source = "Using default processes"
+        else:
+            process_source = "Using custom processes"
+        
         settings_info = f"""
         Current Settings:
         • Number of Processes: {self.num_processes.get()}
-        • Time Quantum: {self.quantum.get()}
+        • Process Source: {process_source}
+        • Time Quantum Q0 (Highest): {self.quantum_q0.get()}
+        • Time Quantum Q1 (Medium): {self.quantum_q1.get()}
+        • Time Quantum Q2 (Lowest): {self.quantum_q2.get()}
         • Demotion Threshold: {self.demote_threshold.get()}
         • Aging Threshold: {self.aging_threshold.get()}
         • Preemption: {'Yes' if self.preempt.get() else 'No'}
-        • Using Default Processes: {'Yes' if self.use_default_processes.get() else 'No'}
         """
         
         self.settings_text.insert('1.0', settings_info)
@@ -616,9 +810,9 @@ class MLFQGUI:
                     for (name, arrival, burst, priority) in rows
                 ][:self.num_processes.get()]
             
-            # Create scheduler
+            # Create scheduler with separate quantums for each queue
             scheduler = SimpleMLFQScheduler(
-                quantum=self.quantum.get(),
+                quantums=[self.quantum_q0.get(), self.quantum_q1.get(), self.quantum_q2.get()],
                 demote_threshold=self.demote_threshold.get(),
                 aging_threshold=self.aging_threshold.get(),
                 preempt=self.preempt.get()
@@ -869,7 +1063,27 @@ class MLFQGUI:
             return
         
         self.frame_i -= 1
-        self._repaint_animation_frame()
+        
+        # Clear and redraw timeline up to current frame
+        if hasattr(self, 'timeline_canvas'):
+            self._init_timeline_canvas()
+            self._g_idx = 0
+            # Redraw all frames up to current position
+            for i in range(self.frame_i + 1):
+                self._append_multirow_cells(self.frames[i])
+        
+        # Update queue displays for current frame
+        fr = self.frames[self.frame_i]
+        def fill(lb, items):
+            if not lb: return
+            lb.delete(0, 'end')
+            for it in items: lb.insert('end', it)
+        
+        fill(getattr(self, 'lb_q0', None), fr['queues'][0])
+        fill(getattr(self, 'lb_q1', None), fr['queues'][1])
+        fill(getattr(self, 'lb_q2', None), fr['queues'][2])
+        fill(getattr(self, 'lb_cpu', None), [fr['running']] if fr['running'] else [])
+        
         self.update_tick_display()
         
         # Update button states
@@ -981,7 +1195,9 @@ class MLFQGUI:
         # Scheduling Rules Section
         timeline_text += "SCHEDULING RULES:\n"
         timeline_text += "-" * 40 + "\n"
-        timeline_text += f"• Time Quantum: {self.quantum.get()} time units\n"
+        timeline_text += f"• Time Quantum Q0 (Highest): {self.quantum_q0.get()} time units\n"
+        timeline_text += f"• Time Quantum Q1 (Medium): {self.quantum_q1.get()} time units\n"
+        timeline_text += f"• Time Quantum Q2 (Lowest): {self.quantum_q2.get()} time units\n"
         timeline_text += f"• Demotion Threshold: {self.demote_threshold.get()} time units\n"
         timeline_text += f"• Aging Threshold: {self.aging_threshold.get()} time units\n"
         timeline_text += f"• Preemption: {'Enabled' if self.preempt.get() else 'Disabled'}\n\n"

@@ -81,14 +81,31 @@ def get_scheduler_settings():
     # This separates the process setup from the scheduler settings
     print_section_title("Scheduler Settings")
     
-    # Get quantum (time slice)
-    # Uses get_number to get how long each process runs before switching (W3Schools: Python Input)
-    # This is like asking "how long does each person get to speak before we move to the next person?"
-    quantum = get_number(
-        f"How much time should each process get before switching? (press Enter for default: {DEFAULT_QUANTUM}) ",
-        default_value=DEFAULT_QUANTUM,
+    # Get separate quantums for each queue
+    print("Time Quantum Settings (Higher priority queues get shorter time slices):")
+    
+    # Q0 (Highest Priority) - shortest quantum
+    quantum_q0 = get_number(
+        f"How much time should processes get in Q0 (highest priority)? (press Enter for default: 2) ",
+        default_value=2,
         min_value=1
     )
+    
+    # Q1 (Medium Priority) - medium quantum
+    quantum_q1 = get_number(
+        f"How much time should processes get in Q1 (medium priority)? (press Enter for default: 4) ",
+        default_value=4,
+        min_value=1
+    )
+    
+    # Q2 (Lowest Priority) - longest quantum
+    quantum_q2 = get_number(
+        f"How much time should processes get in Q2 (lowest priority)? (press Enter for default: 8) ",
+        default_value=8,
+        min_value=1
+    )
+    
+    quantums = [quantum_q0, quantum_q1, quantum_q2]
     
     # Get demotion threshold
     # Uses get_number to get when processes move to lower priority (W3Schools: Python Input)
@@ -116,7 +133,7 @@ def get_scheduler_settings():
         default_answer=True
     )
     
-    return quantum, demote_threshold, aging_threshold, preempt
+    return quantums, demote_threshold, aging_threshold, preempt
 
 def print_timeline(timeline):
     """Print the execution timeline in a nice format."""
@@ -201,7 +218,7 @@ def main():
     # Get scheduler settings
     # Uses get_scheduler_settings to get all the configuration (GeeksforGeeks: Python Functions)
     # This asks about quantum, demotion, aging, and preemption settings
-    quantum, demote_threshold, aging_threshold, preempt = get_scheduler_settings()
+    quantums, demote_threshold, aging_threshold, preempt = get_scheduler_settings()
     
     # Create and run the scheduler
     # Uses print_section_title to show we're starting the simulation (GeeksforGeeks: Python Functions)
@@ -210,7 +227,7 @@ def main():
     print("Simulating CPU scheduling...")
     
     scheduler = SimpleMLFQScheduler(
-        quantum=quantum,
+        quantums=quantums,
         demote_threshold=demote_threshold,
         aging_threshold=aging_threshold,
         preempt=preempt

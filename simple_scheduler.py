@@ -17,17 +17,24 @@ class SimpleMLFQScheduler:
     5. Processes can move up in priority if they wait too long (aging)
     """
     
-    def __init__(self, quantum=3, demote_threshold=6, aging_threshold=5, preempt=True):
+    def __init__(self, quantums=[2, 4, 8], demote_threshold=6, aging_threshold=5, preempt=True):
         """
         Create a new MLFQ scheduler.
         
         Parameters:
-        - quantum: How much time each process gets before we switch to another
+        - quantums: List of time quantums for each queue [Q0, Q1, Q2] (default: [2, 4, 8])
         - demote_threshold: How long a process can run before moving to lower priority
         - aging_threshold: How long a process waits before moving to higher priority
         - preempt: Whether to interrupt a running process when a higher priority one arrives
         """
-        self.quantum = quantum
+        # Support both old single quantum and new separate quantums for backward compatibility
+        if isinstance(quantums, int):
+            # Old format: single quantum for all queues
+            self.quantums = [quantums, quantums, quantums]
+        else:
+            # New format: separate quantums for each queue
+            self.quantums = quantums[:3]  # Ensure we only take first 3 values
+        
         self.demote_threshold = demote_threshold
         self.aging_threshold = aging_threshold
         self.preempt = preempt
@@ -198,8 +205,9 @@ class SimpleMLFQScheduler:
             # Uses assignment to remember when we started running this process (W3Schools: Python Variables)
             run_start_time = self.current_time
             # Uses min() to decide how long to run the process (W3Schools: Python Built-in Functions)
-            # We can't run longer than the quantum or longer than the process needs
-            time_to_run = min(self.quantum, next_process.remaining_time)
+            # We can't run longer than the quantum for this queue or longer than the process needs
+            queue_quantum = self.quantums[next_process.queue_level]
+            time_to_run = min(queue_quantum, next_process.remaining_time)
             
             # Check if we should preempt (interrupt) this process
             # because a higher priority one arrived
@@ -272,7 +280,7 @@ class SimpleMLFQScheduler:
         Each frame: {'t': int, 'queues': [list[str], list[str], list[str]], 'running': str|None}
         """
         self.__init__(  # reset state using current config
-            quantum=self.quantum,
+            quantums=self.quantums,
             demote_threshold=self.demote_threshold,
             aging_threshold=self.aging_threshold,
             preempt=self.preempt
@@ -323,7 +331,8 @@ class SimpleMLFQScheduler:
                 nxt.first_start_time = self.current_time
 
             run_start = self.current_time
-            time_to_run = min(self.quantum, nxt.remaining_time)
+            queue_quantum = self.quantums[nxt.queue_level]
+            time_to_run = min(queue_quantum, nxt.remaining_time)
 
             if self.preempt and arrival_index < len(sorted_processes):
                 next_arrival_time = sorted_processes[arrival_index][1]

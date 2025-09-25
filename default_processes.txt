@@ -1,0 +1,12 @@
+# Default Processes for MLFQ Scheduler
+# This file contains the same processes that are used as defaults in the application
+# Format: ProcessName ArrivalTime BurstTime Priority
+# Priority: 1 = highest, 2 = medium, 3 = lowest
+
+P1 1 20 3
+P2 3 10 2
+P3 5 2 1
+P4 8 7 2
+P5 11 15 3
+P6 15 8 2
+P7 20 4 1
