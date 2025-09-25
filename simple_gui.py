@@ -230,11 +230,8 @@ class MLFQGUI:
         small_btn_style = {"font": ("Arial", 10, "bold"), "height": 1, "width": 8}
 
         # Main control buttons
-        self.run_button = tk.Button(
-            controls, text="🚀 Start", bg="#27ae60", fg="white",
-            command=self.run_simulation, **btn_style
-        )
-        self.play_btn  = tk.Button(controls, text="▶ Play",  state='disabled', command=self.play_animation, **btn_style)
+        self.play_btn  = tk.Button(controls, text="▶ Play", bg="#27ae60", fg="white",
+                                   state='normal', command=self.on_play_clicked, **btn_style)
         self.pause_btn = tk.Button(controls, text="⏸ Pause", state='disabled', command=self.pause_animation, **btn_style)
         self.reset_btn = tk.Button(controls, text="⟲ Reset", state='disabled', command=self.reset_animation, **btn_style)
 
@@ -257,7 +254,6 @@ class MLFQGUI:
         main_controls = tk.Frame(controls)
         main_controls.pack(fill='x', pady=5)
         
-        self.run_button.pack(side='left', expand=True, padx=5, pady=5)
         self.play_btn.pack(side='left', expand=True, padx=5, pady=5)
         self.pause_btn.pack(side='left', expand=True, padx=5, pady=5)
         self.reset_btn.pack(side='left', expand=True, padx=5, pady=5)
@@ -385,22 +381,32 @@ class MLFQGUI:
         use_defaults = self.use_default_processes.get()
         self.custom_frame.pack(fill='both', expand=True, padx=10, pady=5)
 
-        # Clear the table first
+        n = max(1, int(self.num_processes.get()))
+
+        # If we're switching FROM defaults TO custom, seed custom_processes
+        # with whatever is currently visible (the default rows).
+        if not use_defaults:
+            visible_rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
+            if visible_rows:
+                self.custom_processes = [(str(nm), int(a), int(b), int(p)) for (nm, a, b, p) in visible_rows]
+            # If nothing visible yet (e.g., first time), fall back to defaults[:n]
+            if not self.custom_processes:
+                self.custom_processes = list(DEFAULT_PROCESSES[:n])
+
+        # Clear table before repopulating
         for item in self.process_tree.get_children():
             self.process_tree.delete(item)
 
-        n = max(1, int(self.num_processes.get()))
         if use_defaults:
             # Exactly N defaults
             for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
                 self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
         else:
-            # Load saved custom rows then enforce N
+            # Use the seeded custom rows, then ensure we have exactly N
             for name, arrival, burst, priority in self.custom_processes:
                 self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
             self._ensure_custom_row_count(n)
 
-        # Lock/unlock and manage Add/Delete according to rules
         self.update_settings_display()
     
     
@@ -420,13 +426,25 @@ class MLFQGUI:
 
         # Add rows if fewer
         while cur_n < target_n:
-            name = self._next_expected_name()
-            arrival, burst, priority = 0, 1, 1   # defaults for auto-filled rows
+            next_name = self._next_expected_name()     # e.g., 'P8'
+            try:
+                idx = int(next_name[1:]) - 1          # 0-based index into DEFAULT_PROCESSES
+            except ValueError:
+                idx = None
+
+            if idx is not None and 0 <= idx < len(DEFAULT_PROCESSES):
+                name, arrival, burst, priority = DEFAULT_PROCESSES[idx]
+                # Ensure the name matches the sequence we're enforcing
+                name = next_name
+            else:
+                # Fallback if we ran out of built-ins
+                name, arrival, burst, priority = next_name, 0, 1, 1
+
             self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
             if not self.use_default_processes.get():
                 self.custom_processes.append((name, arrival, burst, priority))
             cur_n += 1
-
+        
         # Trim rows if more (remove from bottom)
         while cur_n > target_n:
             iid = self.process_tree.get_children()[-1]
@@ -538,7 +556,15 @@ class MLFQGUI:
             for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
                 self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
         else:
-            # enforce exact N in custom mode
+            # If custom list is empty (first-time custom), seed from defaults[:n]
+            if not self.custom_processes:
+                self.custom_processes = list(DEFAULT_PROCESSES[:n])
+                # also reflect in the table immediately
+                for item in self.process_tree.get_children():
+                    self.process_tree.delete(item)
+                for name, arrival, burst, priority in self.custom_processes:
+                    self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+            # then enforce exact N in custom mode (adds beyond using remaining defaults if available)
             self._ensure_custom_row_count(n)
 
         self.update_settings_display()
@@ -566,7 +592,7 @@ class MLFQGUI:
     def run_simulation(self):
         # Run the MLFQ simulation in a separate thread.
         # Uses threading to prevent GUI freezing (GeeksforGeeks: Python Threading)
-        self.run_button.config(state='disabled')
+        self.play_btn.config(state='disabled')
         self.status_label.config(text="Running simulation...")
         
         # Uses threading.Thread to run simulation in background (W3Schools: Python Threading)
@@ -610,8 +636,7 @@ class MLFQGUI:
             self.root.after(0, self._show_error, str(e))
     
     def _display_results(self, timeline, results, frames):
-        self.notebook.select(self.simulation_tab)  
-        self.run_button.config(state='disabled')
+        self.notebook.select(self.simulation_tab)
 
         # store data for later
         self.timeline = timeline
@@ -621,38 +646,32 @@ class MLFQGUI:
         # UI status
         self.status_label.config(text="Simulation completed. Playing animation…")
 
-        self.play_btn.config(state='normal')
-        self.pause_btn.config(state='disabled')
-        self.reset_btn.config(state='normal')
-        self.prev_tick_btn.config(state='disabled')
-        self.next_tick_btn.config(state='normal' if len(self.frames) > 1 else 'disabled')
-
         # reset animation surfaces and color mapping
         self.frame_i = 0
         self._g_idx  = 0
-        self.color_map = {}  # Reset color mapping for consistent colors
-        
+        self.color_map = {}
+
         if hasattr(self, 'gantt_canvas'):
             self.gantt_canvas.delete('all')
         for lb in (getattr(self, 'lb_q0', None),
-                getattr(self, 'lb_q1', None),
-                getattr(self, 'lb_q2', None),
-                getattr(self, 'lb_cpu', None)):
+                   getattr(self, 'lb_q1', None),
+                   getattr(self, 'lb_q2', None),
+                   getattr(self, 'lb_cpu', None)):
             if lb: lb.delete(0, 'end')
 
         # prepare multi-row timeline
         self._init_timeline_canvas()
-        self.timeline_canvas.update_idletasks()  
+        self.timeline_canvas.update_idletasks()
         self._cell_w = None
         self.anim_total = len(self.frames)
 
-        # Starts auto-play loop
-        self._schedule_next_tick()
+        # auto-play using the normal play() path so buttons are consistent
+        self.play_animation()
+        self.reset_btn.config(state='normal')
 
     
     def _show_error(self, error_message):
-        self.run_button.config(state='normal')
-        self.play_btn.config(state='disabled')
+        self.play_btn.config(state='normal')
         self.pause_btn.config(state='disabled')
         self.reset_btn.config(state='disabled')
         self.status_label.config(text="Simulation failed!")
@@ -862,7 +881,18 @@ class MLFQGUI:
         # Update animation speed based on slider value.
         # Convert slider value (1-10) to delay in milliseconds
         # 1 = fastest (50ms), 10 = slowest (500ms)
-        self.anim_delay_ms = int(50 + (int(value) - 1) * 50)
+        try:
+            v = max(1, min(10, int(value)))
+        except Exception:
+            v = 5
+        self.anim_delay_ms = 50 * (11 - v)   # 1→500ms, 10→50ms
+
+        # If we're currently animating, apply the new delay immediately
+        if self._animating:
+            if self._anim_after_id is not None:
+                self.root.after_cancel(self._anim_after_id)
+                self._anim_after_id = None
+            self._schedule_next_tick()
 
     def update_tick_display(self):
         # Update the tick display label.
@@ -873,6 +903,16 @@ class MLFQGUI:
         total_ticks = len(self.frames)
         current_tick = self.frame_i + 1
         self.tick_label.config(text=f"Tick: {current_tick}/{total_ticks}")
+
+    def on_play_clicked(self):
+        if not self.frames or self.frame_i >= len(self.frames):
+            # Fresh run
+            self.status_label.config(text="Running simulation...")
+            self.play_btn.config(state='disabled')
+            self.run_simulation()
+        else:
+            # Resume from pause
+            self.play_animation()
 
     def _start_animation(self):
         # Begin auto-playing the animation once frames are ready.
@@ -1032,8 +1072,8 @@ class MLFQGUI:
         self.status_label.config(text="Animation finished.")
         # now populate and reveal the Results tab
         self._populate_results_tab()
-        self.notebook.select(self.results_tab)   # or index 3 if you prefer
-        self.run_button.config(state='normal')
+        self.notebook.select(self.results_tab)
+        self.play_btn.config(state='normal')
 
     def _init_timeline_canvas(self):
         if not hasattr(self, 'timeline_canvas'):
