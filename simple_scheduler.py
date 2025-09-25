@@ -1,7 +1,9 @@
+# This handles all the logic for the MLFQ scheduling algorithm.
 # Simple MLFQ (Multi-Level Feedback Queue) Scheduler
 # This is the heart of our CPU scheduler simulation
 
 from simple_process import Process
+from copy import deepcopy
 
 class SimpleMLFQScheduler:
     """
@@ -263,3 +265,110 @@ class SimpleMLFQScheduler:
             })
         
         return self.timeline, results
+    
+    def simulate_with_frames(self, process_list, step=1):
+        """
+        Like simulate(), but also returns 'frames' for animation.
+        Each frame: {'t': int, 'queues': [list[str], list[str], list[str]], 'running': str|None}
+        """
+        self.__init__(  # reset state using current config
+            quantum=self.quantum,
+            demote_threshold=self.demote_threshold,
+            aging_threshold=self.aging_threshold,
+            preempt=self.preempt
+        )
+
+        # Run essentially the same loop as simulate(), but:
+        # - advance time in chunks, and
+        # - before/after each run slice, push a snapshot
+        frames = []
+
+        def snapshot(running_name):
+            frames.append({
+                't': self.current_time,
+                'queues': [list(q) for q in self.queues],  # copy queue names
+                'running': running_name
+            })
+
+        # ----- (copy the simulate() body,
+        # inserting snapshot(running_name) before and after each run) -----
+        sorted_processes = sorted(process_list, key=lambda x: x[1])
+        arrival_index = 0
+
+        while True:
+            while arrival_index < len(sorted_processes):
+                next_arrival = sorted_processes[arrival_index]
+                if next_arrival[1] <= self.current_time:
+                    name, at, bt, pr = next_arrival
+                    if name not in self.processes:
+                        self.add_process(Process(name, at, bt, pr))
+                    arrival_index += 1
+                else:
+                    break
+
+            nxt = self._get_next_process()
+            if nxt is None:
+                if arrival_index >= len(sorted_processes):
+                    # final idle snapshot
+                    snapshot(None)
+                    break
+                else:
+                    self.current_time = sorted_processes[arrival_index][1]
+                    snapshot(None)
+                    continue
+
+            self._handle_aging()
+            self._update_waiting_times(nxt)
+            if nxt.first_start_time is None:
+                nxt.first_start_time = self.current_time
+
+            run_start = self.current_time
+            time_to_run = min(self.quantum, nxt.remaining_time)
+
+            if self.preempt and arrival_index < len(sorted_processes):
+                next_arrival_time = sorted_processes[arrival_index][1]
+                if next_arrival_time < self.current_time + time_to_run:
+                    time_to_run = next_arrival_time - self.current_time
+
+            # snapshot BEFORE running this slice
+            snapshot(nxt.name)
+
+            self.current_time += time_to_run
+            nxt.remaining_time -= time_to_run
+            nxt.time_in_current_queue += time_to_run
+
+            self.timeline.append((run_start, self.current_time, nxt.name, nxt.queue_level))
+
+            if nxt.is_finished():
+                nxt.completion_time = self.current_time
+                nxt.time_in_current_queue = 0
+                # snapshot immediately after finishing
+                snapshot(None)
+            else:
+                if (self.demote_threshold > 0 and 
+                    nxt.time_in_current_queue >= self.demote_threshold and 
+                    nxt.queue_level < 2):
+                    nxt.time_in_current_queue = 0
+                    self._add_to_queue(nxt, nxt.queue_level + 1)
+                else:
+                    self._add_to_queue(nxt, nxt.queue_level)
+
+                # snapshot after re-queue
+                snapshot(None)
+
+        # Build results exactly like simulate()
+        results = []
+        for pname in sorted(self.processes.keys()):
+            p = self.processes[pname]
+            results.append({
+                'name': p.name,
+                'arrival': p.arrival_time,
+                'burst': p.burst_time,
+                'priority': p.priority,
+                'first_start': p.first_start_time,
+                'completion': p.completion_time,
+                'turnaround': p.get_turnaround_time(),
+                'waiting': p.waiting_time,
+                'response': p.get_response_time()
+            })
+        return self.timeline, results, frames

@@ -8,18 +8,24 @@ from simple_process import Process, DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_
 from simple_scheduler import SimpleMLFQScheduler
 
 class MLFQGUI:
-    """
-    A simple graphical user interface for the MLFQ scheduler.
-    This makes it easy for beginners to use without typing commands.
-    """
+    
+    #A simple graphical user interface for the MLFQ scheduler.
+    #This makes it easy for beginners to use without typing commands.
     
     def __init__(self):
         # Uses tkinter.Tk() to create the main window (W3Schools: Python GUI with Tkinter)
         # This is the main window that holds all the GUI elements
         self.root = tk.Tk()
         self.root.title("MLFQ CPU Scheduler - Beginner Version")
-        self.root.geometry("800x600")
+        self.root.geometry("1000x700")
+        self.root.minsize(1000, 700)
         self.root.configure(bg='#f0f0f0')
+
+        # For maximizing the window in Windows and Linux
+        try:
+            self.root.state('zoomed')       
+        except tk.TclError:
+            self.root.attributes('-zoomed', True)  
         
         # Uses variables to store user input (GeeksforGeeks: Python Tkinter Variables)
         # These automatically update the GUI when changed
@@ -29,6 +35,22 @@ class MLFQGUI:
         self.aging_threshold = tk.IntVar(value=DEFAULT_AGING_THRESHOLD)
         self.preempt = tk.BooleanVar(value=True)
         self.use_default_processes = tk.BooleanVar(value=True)
+
+        # Animation state defaults
+        self.frames = []
+        self.frame_i = 0
+        self._g_idx = 0
+        self._animating = False
+        self.anim_delay_ms = 120
+        self._anim_after_id = None 
+
+        # Color 
+        self.idle_color = "#B383B3"
+        self.palette = [
+            "#66C5CC", "#F6CF71", "#F89C74", "#DCB0F2", "#87C55F",
+            "#9EB9F3", "#FE88B1", "#C9DB74", "#8BE0A4", "#B497E7",
+        ]
+        self.color_map = {} 
         
         # Uses list to store custom processes created by user
         self.custom_processes = []
@@ -217,50 +239,82 @@ class MLFQGUI:
         help_text_widget.config(state='disabled')
     
     def setup_simulation_tab(self):
-        """Create the simulation control tab."""
-        # Uses tkinter.Frame to create a tab for running simulations
-        sim_frame = ttk.Frame(self.notebook)
-        self.notebook.add(sim_frame, text="Simulation")
-        
-        # Run simulation section
-        run_frame = tk.LabelFrame(sim_frame, text="Run Simulation", font=("Arial", 12, "bold"))
-        run_frame.pack(fill='x', padx=10, pady=10)
-        
-        # Uses tkinter.Button for starting the simulation
+        # Simulation tab
+        self.simulation_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.simulation_tab, text="Simulation")
+        sim = self.simulation_tab
+
+        # ---------- Controls (replaces the old "Run Simulation" box) ----------
+        controls = tk.LabelFrame(sim, text="Controls", font=("Arial", 12, "bold"))
+        controls.pack(fill='x', padx=10, pady=10)
+
+        btn_style = {"font": ("Arial", 12, "bold"), "height": 2, "width": 12}
+
         self.run_button = tk.Button(
-            run_frame, 
-            text="🚀 Start Simulation", 
-            command=self.run_simulation,
-            font=("Arial", 12, "bold"),
-            bg='#27ae60',
-            fg='white',
-            height=2
+            controls, text="🚀 Start", bg="#27ae60", fg="white",
+            command=self.run_simulation, **btn_style
         )
-        self.run_button.pack(pady=20)
-        
-        # Progress bar
-        self.progress = ttk.Progressbar(run_frame, mode='indeterminate')
-        self.progress.pack(fill='x', padx=20, pady=5)
-        
-        # Status label
-        self.status_label = tk.Label(run_frame, text="Ready to run simulation", font=("Arial", 10))
-        self.status_label.pack(pady=5)
-        
-        # Current settings display
-        settings_display = tk.LabelFrame(sim_frame, text="Current Settings", font=("Arial", 10, "bold"))
-        settings_display.pack(fill='x', padx=10, pady=5)
-        
-        self.settings_text = tk.Text(settings_display, height=6, wrap='word', bg='#f8f9fa')
+        self.play_btn  = tk.Button(controls, text="▶ Play",  state='disabled', **btn_style)
+        self.pause_btn = tk.Button(controls, text="⏸ Pause", state='disabled', **btn_style)
+        self.reset_btn = tk.Button(controls, text="⟲ Reset", state='disabled', **btn_style)
+
+        # Horizontal row
+        self.run_button.pack(side='left', expand=True, padx=5, pady=5)
+        self.play_btn.pack(side='left', expand=True, padx=5, pady=5)
+        self.pause_btn.pack(side='left', expand=True, padx=5, pady=5)
+        self.reset_btn.pack(side='left', expand=True, padx=5, pady=5)
+
+        # Status
+        self.status_label = tk.Label(controls, text="Ready to run simulation", font=("Arial", 10))
+        self.status_label.pack(pady=(0, 8))
+
+        # ---------- Queue/CPU list displays (below the controls) ----------
+        lists = tk.Frame(sim)
+        lists.pack(fill='x', padx=10, pady=(0, 10))
+
+        def _mk_listbox(parent, title):
+            f = tk.Frame(parent)
+            tk.Label(f, text=title, font=("Arial", 10, "bold")).pack(anchor='center')
+            lb = tk.Listbox(f, height=3)
+            lb.pack(fill='both', expand=True)
+            return f, lb
+
+        f0, self.lb_q0  = _mk_listbox(lists, "Q0 (Highest)")
+        f1, self.lb_q1  = _mk_listbox(lists, "Q1")
+        f2, self.lb_q2  = _mk_listbox(lists, "Q2")
+        f3, self.lb_cpu = _mk_listbox(lists, "CPU (Running)")
+
+        for i, f in enumerate([f0, f1, f2, f3]):
+            f.grid(row=0, column=i, sticky='nsew', padx=5)
+            lists.grid_columnconfigure(i, weight=1)
+
+        # ---------- Timeline area ----------
+        anim = tk.LabelFrame(sim, text="Animation", font=("Arial", 10, "bold"))
+        anim.pack(fill='both', expand=True, padx=10, pady=5)
+
+        tk.Label(anim, text="Simulation Timeline", font=("Arial", 10, "bold")).pack(
+            anchor='w', padx=5, pady=(5, 0)
+        )
+
+        self.timeline_canvas = tk.Canvas(anim, height=140, bg="white")
+        self.timeline_canvas.pack(fill='x', padx=5, pady=8)
+
+        # ---------- Current settings ----------
+        settings = tk.LabelFrame(sim, text="Current Settings", font=("Arial", 10, "bold"))
+        settings.pack(fill='x', padx=10, pady=5)
+
+        self.settings_text = tk.Text(settings, height=6, wrap='word', bg='#f8f9fa')
         self.settings_text.pack(fill='x', padx=5, pady=5)
-        
-        # Update settings display
+
         self.update_settings_display()
+
     
     def setup_results_tab(self):
         """Create the results display tab."""
         # Uses tkinter.Frame to create a tab for showing results
-        results_frame = ttk.Frame(self.notebook)
-        self.notebook.add(results_frame, text="Results")
+        self.results_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.results_tab, text="Results")
+        results_frame = self.results_tab
         
         # Timeline section
         timeline_frame = tk.LabelFrame(results_frame, text="Execution Timeline", font=("Arial", 10, "bold"))
@@ -391,7 +445,6 @@ class MLFQGUI:
         """Run the MLFQ simulation in a separate thread."""
         # Uses threading to prevent GUI freezing (GeeksforGeeks: Python Threading)
         self.run_button.config(state='disabled')
-        self.progress.start()
         self.status_label.config(text="Running simulation...")
         
         # Uses threading.Thread to run simulation in background (W3Schools: Python Threading)
@@ -418,93 +471,58 @@ class MLFQGUI:
             )
             
             # Run simulation
-            timeline, results = scheduler.simulate(processes)
+            timeline, results, frames = scheduler.simulate_with_frames(processes)
             
             # Update GUI in main thread
             # Uses tkinter.after to update GUI from background thread (GeeksforGeeks: Python Tkinter Threading)
-            self.root.after(0, self._display_results, timeline, results)
+            self.root.after(0, self._display_results, timeline, results, frames)
             
         except Exception as e:
             # Uses tkinter.after to show error in main thread
             self.root.after(0, self._show_error, str(e))
     
-    def _display_results(self, timeline, results):
-        """Display the simulation results in the GUI."""
-        # Update status
-        self.status_label.config(text="Simulation completed successfully!")
-        self.progress.stop()
-        self.run_button.config(state='normal')
-        
-        # Switch to results tab
-        self.notebook.select(3)  # Results tab is index 3
-        
-        # Display timeline
-        self.timeline_text.delete('1.0', 'end')
-        timeline_text = "Execution Timeline:\n"
-        timeline_text += "This shows when each process ran and in which queue:\n\n"
-        
-        if timeline:
-            timeline_str = " | ".join([f"{start}-{end}:{name}@Q{queue}" 
-                                      for start, end, name, queue in timeline])
-            timeline_text += timeline_str
-        else:
-            timeline_text += "No processes were executed."
-        
-        self.timeline_text.insert('1.0', timeline_text)
-        
-        # Clear and populate results table
-        for item in self.results_tree.get_children():
-            self.results_tree.delete(item)
-        
-        for result in results:
-            self.results_tree.insert('', 'end', values=(
-                result['name'],
-                result['arrival'],
-                result['burst'],
-                result['priority'],
-                result['first_start'] if result['first_start'] is not None else "N/A",
-                result['completion'] if result['completion'] is not None else "N/A",
-                result['turnaround'] if result['turnaround'] is not None else "N/A",
-                result['waiting'],
-                result['response'] if result['response'] is not None else "N/A"
-            ))
-        
-        # Display summary
-        self.summary_text.delete('1.0', 'end')
-        
-        # Calculate summary statistics
-        completed_processes = [r for r in results if r['completion'] is not None]
-        
-        if completed_processes:
-            avg_waiting = sum(r['waiting'] for r in completed_processes) / len(completed_processes)
-            avg_turnaround = sum(r['turnaround'] for r in completed_processes) / len(completed_processes)
-            avg_response = sum(r['response'] for r in completed_processes if r['response'] is not None) / len(completed_processes)
-            
-            total_burst_time = sum(r['burst'] for r in completed_processes)
-            makespan = max(r['completion'] for r in completed_processes) - min(r['arrival'] for r in completed_processes)
-            cpu_utilization = (total_burst_time / makespan) * 100 if makespan > 0 else 100.0
-            
-            summary_text = f"""
-            Summary Statistics:
-            • Average Waiting Time: {avg_waiting:.2f}
-            • Average Turnaround Time: {avg_turnaround:.2f}
-            • Average Response Time: {avg_response:.2f}
-            • CPU Utilization: {cpu_utilization:.2f}%
-            • Total Processes: {len(completed_processes)}
-            • Total Simulation Time: {makespan}
-            """
-        else:
-            summary_text = "No processes completed."
-        
-        self.summary_text.insert('1.0', summary_text)
-        
-        # Update settings display
-        self.update_settings_display()
+    def _display_results(self, timeline, results, frames):
+        self.notebook.select(self.simulation_tab)  
+        self.run_button.config(state='disabled')
+
+        # store data for later
+        self.timeline = timeline
+        self.results  = results
+        self.frames   = frames or []
+
+        # UI status
+        self.status_label.config(text="Simulation completed. Playing animation…")
+
+        self.play_btn.config(state='normal')
+        self.pause_btn.config(state='normal')
+        self.reset_btn.config(state='normal')
+
+        # reset animation surfaces
+        self.frame_i = 0
+        self._g_idx  = 0
+        if hasattr(self, 'gantt_canvas'):
+            self.gantt_canvas.delete('all')
+        for lb in (getattr(self, 'lb_q0', None),
+                getattr(self, 'lb_q1', None),
+                getattr(self, 'lb_q2', None),
+                getattr(self, 'lb_cpu', None)):
+            if lb: lb.delete(0, 'end')
+
+        # prepare multi-row timeline
+        self._init_timeline_canvas()
+        self.timeline_canvas.update_idletasks()  
+        self._cell_w = None
+        self.anim_total = len(self.frames)
+
+        # Starts auto-play loop
+        self._schedule_next_tick()
+
     
     def _show_error(self, error_message):
-        """Show an error message to the user."""
-        self.progress.stop()
         self.run_button.config(state='normal')
+        self.play_btn.config(state='disabled')
+        self.pause_btn.config(state='disabled')
+        self.reset_btn.config(state='disabled')
         self.status_label.config(text="Simulation failed!")
         messagebox.showerror("Simulation Error", f"An error occurred: {error_message}")
     
@@ -513,6 +531,265 @@ class MLFQGUI:
         # Uses tkinter.mainloop to start the GUI (W3Schools: Python Tkinter Mainloop)
         # This makes the window appear and handles user interactions
         self.root.mainloop()
+
+    def _repaint_animation_frame(self):
+        if not self.frames:
+            return
+        fr = self.frames[self.frame_i]
+
+        def fill(lb, items):
+            if not lb: return
+            lb.delete(0, 'end')
+            for it in items: lb.insert('end', it)
+
+        fill(getattr(self, 'lb_q0', None), fr['queues'][0])
+        fill(getattr(self, 'lb_q1', None), fr['queues'][1])
+        fill(getattr(self, 'lb_q2', None), fr['queues'][2])
+        fill(getattr(self, 'lb_cpu', None), [fr['running']] if fr['running'] else [])
+
+        self._append_multirow_cells(fr)
+
+    def _append_gantt_cell(self, pid):
+        if not hasattr(self, 'gantt_canvas'): return
+        w = self.gantt_canvas.winfo_width() or 600
+        total = max(1, len(self.frames))
+        unit = max(1, int(w / total))
+        idx = getattr(self, '_g_idx', 0)
+        color = self._color_for(pid)
+        self.gantt_canvas.create_rectangle(idx*unit, 0, (idx+1)*unit, 30,
+                                        fill=color, outline='black')
+        if pid:
+            self.gantt_canvas.create_text(idx*unit + unit/2, 15, text=pid, fill="white", font=("Arial", 8))
+        self._g_idx = idx + 1
+
+    def _color_for(self, pid):
+        if not pid:    # Idle color
+            return "#a6c8ff"
+        return "#%06x" % (abs(hash(pid)) & 0xFFFFFF)
+
+    def _append_multirow_cells(self, fr):
+        """Draw one time-slice for Q0, Q1, Q2, and CPU."""
+        if not hasattr(self, 'timeline_canvas'):
+            return
+        c = self.timeline_canvas
+        row_h  = getattr(self, '_row_h', 30)
+        left_w = getattr(self, '_left_w', 70)
+
+        if getattr(self, '_cell_w', None) is None:
+            width = max(600, c.winfo_width())
+            self._cell_w = max(12, int((width - left_w) / max(1, len(self.frames))))
+        unit = self._cell_w
+
+        total = max(1, len(self.frames))
+        width = c.winfo_width() or 800
+        unit  = max(10, int((width - left_w) / total))
+        idx   = getattr(self, '_g_idx', 0)
+
+        # What to show per row at this tick:
+        q0_head = fr['queues'][0][0] if fr['queues'][0] else None
+        q1_head = fr['queues'][1][0] if fr['queues'][1] else None
+        q2_head = fr['queues'][2][0] if fr['queues'][2] else None
+        cpu_pid = fr['running'] if fr['running'] else None
+
+        rows = [q0_head, q1_head, q2_head, cpu_pid]
+
+        x0 = left_w + idx * unit
+        x1 = left_w + (idx + 1) * unit
+
+        for r, pid in enumerate(rows):
+            y0 = r * row_h
+            y1 = y0 + row_h - 1
+            col = self._color_for(pid)
+            c.create_rectangle(x0, y0, x1, y1, fill=col, outline='black')
+            c.create_text((x0 + x1)/2, y0 + row_h/2,
+                        text=(pid if pid else "Idle"),
+                        font=("Arial", 8))
+        
+        # time tick label at the bottom row
+        c.create_text(x0 + 5, 4*row_h + 8, text=str(idx), anchor='w', font=("Arial", 7))
+
+        self._g_idx = idx + 1
+
+
+    def play_animation(self):
+        self._animating = True
+        def step():
+            if not self._animating: return
+            if self.frame_i < len(self.frames) - 1:
+                self.frame_i += 1
+                self._repaint_animation_frame()
+                delay = max(10, 300 - 25 * (self.speed.get() if hasattr(self, 'speed') else 5))
+                self.root.after(delay, step)
+            else:
+                self._animating = False
+        step()
+
+    def pause_animation(self):
+        self._animating = False
+
+    def reset_animation(self):
+        self._animating = False
+        self.frame_i = 0
+        self._g_idx = 0
+        if hasattr(self, 'gantt_canvas'):
+            self.gantt_canvas.delete('all')
+        self._repaint_animation_frame()
+
+        if hasattr(self, 'timeline_canvas'):
+            self._init_timeline_canvas()
+            if self.frames:
+                self._append_multirow_cells(self.frames[0])
+
+    def _start_animation(self):
+        """Begin auto-playing the animation once frames are ready."""
+        self.frame_i = 0
+        self.anim_total = len(self.frames) if self.frames else 0
+        self._init_timeline_canvas()
+        self.timeline_canvas.update_idletasks()  # make sure width is available
+        self._cell_w = None
+        self._schedule_next_tick()
+
+    def _schedule_next_tick(self):
+        if self._anim_after_id is not None:
+            self.root.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        self._anim_after_id = self.root.after(self.anim_delay_ms, self._animate_step)
+
+    def _animate_step(self):
+        if not self.frames or self.frame_i >= self.anim_total:
+            self._anim_after_id = None
+            self._on_animation_finished()
+            return
+
+        fr = self.frames[self.frame_i]
+
+        # update listboxes (if you already have that logic)
+        self._fill_queue_listboxes(fr)
+
+        # draw one column for Q0, Q1, Q2, CPU
+        self._append_multirow_cells(fr)        
+
+        self.frame_i += 1
+        self._schedule_next_tick()
+
+    def _fill_queue_listboxes(self, fr):
+            def fill(lb, items):
+                if not lb: return
+                lb.delete(0, 'end')
+                for it in items:
+                    lb.insert('end', it)
+            fill(getattr(self, 'lb_q0', None), fr['queues'][0])
+            fill(getattr(self, 'lb_q1', None), fr['queues'][1])
+            fill(getattr(self, 'lb_q2', None), fr['queues'][2])
+            fill(getattr(self, 'lb_cpu', None), [fr['running']] if fr['running'] else [])
+
+
+    def _populate_results_tab(self):
+        """Fill the Results tab using self.timeline and self.results."""
+        # ---- Timeline text ----
+        self.timeline_text.delete('1.0', 'end')
+        timeline_text = "Execution Timeline:\n"
+        timeline_text += "This shows when each process ran and in which queue:\n\n"
+        if self.timeline:
+            timeline_str = " | ".join([f"{s}-{e}:{n}@Q{q}" for s, e, n, q in self.timeline])
+            timeline_text += timeline_str
+        else:
+            timeline_text += "No processes were executed."
+        self.timeline_text.insert('1.0', timeline_text)
+
+        # ---- Results table ----
+        for item in self.results_tree.get_children():
+            self.results_tree.delete(item)
+
+        for r in self.results:
+            self.results_tree.insert('', 'end', values=(
+                r['name'], r['arrival'], r['burst'], r['priority'],
+                r['first_start'] if r['first_start'] is not None else "N/A",
+                r['completion']  if r['completion']  is not None else "N/A",
+                r['turnaround']  if r['turnaround']  is not None else "N/A",
+                r['waiting'],
+                r['response']    if r['response']    is not None else "N/A"
+            ))
+
+        # ---- Summary ----
+        self.summary_text.delete('1.0', 'end')
+        completed = [r for r in self.results if r['completion'] is not None]
+        if completed:
+            avg_wait = sum(r['waiting'] for r in completed) / len(completed)
+            avg_ta   = sum(r['turnaround'] for r in completed) / len(completed)
+            avg_resp = sum(r['response'] for r in completed if r['response'] is not None) / len(completed)
+            total_bt = sum(r['burst'] for r in completed)
+            makespan = max(r['completion'] for r in completed) - min(r['arrival'] for r in completed)
+            cpu_util = (total_bt / makespan) * 100 if makespan > 0 else 100.0
+            summary_text = (
+                f"Summary Statistics:\n"
+                f"• Average Waiting Time: {avg_wait:.2f}\n"
+                f"• Average Turnaround Time: {avg_ta:.2f}\n"
+                f"• Average Response Time: {avg_resp:.2f}\n"
+                f"• CPU Utilization: {cpu_util:.2f}%\n"
+                f"• Total Processes: {len(completed)}\n"
+                f"• Total Simulation Time: {makespan}\n"
+            )
+        else:
+            summary_text = "No processes completed."
+        self.summary_text.insert('1.0', summary_text)
+
+
+    def _on_animation_finished(self):
+        """Called once the last frame is drawn."""
+        self.status_label.config(text="Animation finished.")
+        # now populate and reveal the Results tab
+        self._populate_results_tab()
+        self.notebook.select(self.results_tab)   # or index 3 if you prefer
+        self.run_button.config(state='normal')
+
+    def _init_timeline_canvas(self):
+        if not hasattr(self, 'timeline_canvas'):
+            return
+        c = self.timeline_canvas
+        c.delete('all')
+
+        # layout constants used by _append_multirow_cells
+        self._row_h  = 30        # per-row height
+        self._left_w = 70        # left label gutter
+        rows = ["Q0", "Q1", "Q2", "CPU"]
+
+        # ensure canvas tall enough for 4 rows + small time-axis strip
+        c.config(height=self._row_h * 4 + 18)
+
+        # draw row labels + horizontal separators
+        width = c.winfo_width() or 800
+        for i, label in enumerate(rows):
+            y0 = i * self._row_h
+            y1 = y0 + self._row_h
+            # label background
+            c.create_rectangle(0, y0, self._left_w, y1, fill="#f7f7f7", outline="black")
+            # label text
+            c.create_text(self._left_w - 5, (y0 + y1) / 2, text=label,
+                        anchor='e', font=("Arial", 9, "bold"))
+            # row separator line across the timeline area
+            c.create_line(self._left_w, y1, width, y1, fill="#cccccc")
+
+        # small 't' mark for time axis below rows
+        c.create_text(5, self._row_h * 4 + 8, text="t", anchor='w', font=("Arial", 8))
+
+        # reset the column index used by _append_multirow_cells
+        self._g_idx = 0
+
+        # (optional) recompute column width on resize
+        def _on_resize(_evt):
+            # just clear guides and redraw them to match the new width
+            self._init_timeline_canvas()
+            # also redraw the already-drawn columns if we have any frames shown
+            if self.frames and self.frame_i > 0:
+                # replay the already drawn ticks quickly to rebuild the picture
+                idx_backup = self._g_idx
+                self._g_idx = 0
+                for i in range(self.frame_i):
+                    self._append_multirow_cells(self.frames[i])
+                self._g_idx = idx_backup
+        c.bind("<Configure>", lambda e: c.after_idle(_on_resize, e))
+
 
 def main():
     """Main function to start the GUI application."""
@@ -529,4 +806,8 @@ def main():
         root.destroy()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        # Graceful exit if Ctrl+C is pressed in the console
+        pass

@@ -1,3 +1,4 @@
+# This manages all the input for the simulation.
 # Simple Input Functions for MLFQ Scheduler
 # These functions help us get input from the user in a friendly way
 
