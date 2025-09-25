@@ -47,8 +47,8 @@ class MLFQGUI:
         # Color 
         self.idle_color = "#B383B3"
         self.palette = [
-            "#66C5CC", "#F6CF71", "#F89C74", "#DCB0F2", "#87C55F",
-            "#9EB9F3", "#FE88B1", "#C9DB74", "#8BE0A4", "#B497E7",
+            "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
+            "#DDA0DD", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E9",
         ]
         self.color_map = {} 
         
@@ -77,20 +77,32 @@ class MLFQGUI:
         self.notebook.pack(fill='both', expand=True, padx=10, pady=5)
         
         # Create tabs
-        self.setup_processes_tab()
-        self.setup_settings_tab()
+        self.setup_configuration_tab()
         self.setup_simulation_tab()
         self.setup_results_tab()
     
-    def setup_processes_tab(self):
-        """Create the processes configuration tab."""
-        # Uses tkinter.Frame to create a tab for process setup
-        processes_frame = ttk.Frame(self.notebook)
-        self.notebook.add(processes_frame, text="Processes")
+    def setup_configuration_tab(self):
+        """Create the combined configuration tab for processes and settings."""
+        # Uses tkinter.Frame to create a tab for process setup and scheduler settings
+        config_frame = ttk.Frame(self.notebook)
+        self.notebook.add(config_frame, text="Configuration")
         
+        # Create a main container with two columns
+        main_container = tk.Frame(config_frame)
+        main_container.pack(fill='both', expand=True, padx=10, pady=5)
+        
+        # Left column for processes
+        left_column = tk.Frame(main_container)
+        left_column.pack(side='left', fill='both', expand=True, padx=(0, 5))
+        
+        # Right column for settings
+        right_column = tk.Frame(main_container)
+        right_column.pack(side='right', fill='both', expand=True, padx=(5, 0))
+        
+        # ========== PROCESSES SECTION ==========
         # Process count section
-        count_frame = tk.LabelFrame(processes_frame, text="Number of Processes", font=("Arial", 10, "bold"))
-        count_frame.pack(fill='x', padx=10, pady=5)
+        count_frame = tk.LabelFrame(left_column, text="Number of Processes", font=("Arial", 10, "bold"))
+        count_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(count_frame, text="How many processes?").pack(side='left', padx=5)
         # Uses tkinter.Spinbox for number input (W3Schools: Python Tkinter Spinbox)
@@ -98,8 +110,8 @@ class MLFQGUI:
         count_spinbox.pack(side='left', padx=5)
         
         # Default processes option
-        default_frame = tk.LabelFrame(processes_frame, text="Process Options", font=("Arial", 10, "bold"))
-        default_frame.pack(fill='x', padx=10, pady=5)
+        default_frame = tk.LabelFrame(left_column, text="Process Options", font=("Arial", 10, "bold"))
+        default_frame.pack(fill='x', padx=5, pady=5)
         
         # Uses tkinter.Checkbutton for yes/no options (W3Schools: Python Tkinter Checkbutton)
         default_check = tk.Checkbutton(
@@ -111,8 +123,8 @@ class MLFQGUI:
         default_check.pack(anchor='w', padx=5, pady=2)
         
         # Custom processes section
-        self.custom_frame = tk.LabelFrame(processes_frame, text="Custom Processes", font=("Arial", 10, "bold"))
-        self.custom_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        self.custom_frame = tk.LabelFrame(left_column, text="Custom Processes", font=("Arial", 10, "bold"))
+        self.custom_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         # Process list with scrollbar
         list_frame = tk.Frame(self.custom_frame)
@@ -166,16 +178,11 @@ class MLFQGUI:
         
         # Initially hide custom frame
         self.toggle_custom_processes()
-    
-    def setup_settings_tab(self):
-        """Create the scheduler settings tab."""
-        # Uses tkinter.Frame to create a tab for scheduler settings
-        settings_frame = ttk.Frame(self.notebook)
-        self.notebook.add(settings_frame, text="Settings")
         
+        # ========== SETTINGS SECTION ==========
         # Quantum setting
-        quantum_frame = tk.LabelFrame(settings_frame, text="Time Quantum", font=("Arial", 10, "bold"))
-        quantum_frame.pack(fill='x', padx=10, pady=5)
+        quantum_frame = tk.LabelFrame(right_column, text="Time Quantum", font=("Arial", 10, "bold"))
+        quantum_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(quantum_frame, text="How much time should each process get before switching?").pack(anchor='w', padx=5, pady=2)
         tk.Label(quantum_frame, text="(Like giving each person 5 minutes to speak)").pack(anchor='w', padx=20, pady=2)
@@ -184,8 +191,8 @@ class MLFQGUI:
         quantum_spinbox.pack(anchor='w', padx=5, pady=2)
         
         # Demotion threshold
-        demote_frame = tk.LabelFrame(settings_frame, text="Demotion Threshold", font=("Arial", 10, "bold"))
-        demote_frame.pack(fill='x', padx=10, pady=5)
+        demote_frame = tk.LabelFrame(right_column, text="Demotion Threshold", font=("Arial", 10, "bold"))
+        demote_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(demote_frame, text="How long should a process run before moving to lower priority?").pack(anchor='w', padx=5, pady=2)
         tk.Label(demote_frame, text="(If a process runs too long, it gets moved to a less important queue)").pack(anchor='w', padx=20, pady=2)
@@ -194,8 +201,8 @@ class MLFQGUI:
         demote_spinbox.pack(anchor='w', padx=5, pady=2)
         
         # Aging threshold
-        aging_frame = tk.LabelFrame(settings_frame, text="Aging Threshold", font=("Arial", 10, "bold"))
-        aging_frame.pack(fill='x', padx=10, pady=5)
+        aging_frame = tk.LabelFrame(right_column, text="Aging Threshold", font=("Arial", 10, "bold"))
+        aging_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(aging_frame, text="How long should a process wait before moving to higher priority?").pack(anchor='w', padx=5, pady=2)
         tk.Label(aging_frame, text="(If a process waits too long, it gets moved to a more important queue)").pack(anchor='w', padx=20, pady=2)
@@ -204,8 +211,8 @@ class MLFQGUI:
         aging_spinbox.pack(anchor='w', padx=5, pady=2)
         
         # Preemption setting
-        preempt_frame = tk.LabelFrame(settings_frame, text="Preemption", font=("Arial", 10, "bold"))
-        preempt_frame.pack(fill='x', padx=10, pady=5)
+        preempt_frame = tk.LabelFrame(right_column, text="Preemption", font=("Arial", 10, "bold"))
+        preempt_frame.pack(fill='x', padx=5, pady=5)
         
         tk.Label(preempt_frame, text="Should running processes be interrupted when higher priority ones arrive?").pack(anchor='w', padx=5, pady=2)
         tk.Label(preempt_frame, text="(Like stopping a low-priority customer when a VIP arrives)").pack(anchor='w', padx=20, pady=2)
@@ -218,8 +225,8 @@ class MLFQGUI:
         preempt_no.pack(anchor='w', padx=5, pady=2)
         
         # Help section
-        help_frame = tk.LabelFrame(settings_frame, text="Help", font=("Arial", 10, "bold"))
-        help_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        help_frame = tk.LabelFrame(right_column, text="Help", font=("Arial", 10, "bold"))
+        help_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         help_text = """
         MLFQ (Multi-Level Feedback Queue) Settings Explained:
@@ -249,24 +256,57 @@ class MLFQGUI:
         controls.pack(fill='x', padx=10, pady=10)
 
         btn_style = {"font": ("Arial", 12, "bold"), "height": 2, "width": 12}
+        small_btn_style = {"font": ("Arial", 10, "bold"), "height": 1, "width": 8}
 
+        # Main control buttons
         self.run_button = tk.Button(
             controls, text="🚀 Start", bg="#27ae60", fg="white",
             command=self.run_simulation, **btn_style
         )
-        self.play_btn  = tk.Button(controls, text="▶ Play",  state='disabled', **btn_style)
-        self.pause_btn = tk.Button(controls, text="⏸ Pause", state='disabled', **btn_style)
-        self.reset_btn = tk.Button(controls, text="⟲ Reset", state='disabled', **btn_style)
+        self.play_btn  = tk.Button(controls, text="▶ Play",  state='disabled', command=self.play_animation, **btn_style)
+        self.pause_btn = tk.Button(controls, text="⏸ Pause", state='disabled', command=self.pause_animation, **btn_style)
+        self.reset_btn = tk.Button(controls, text="⟲ Reset", state='disabled', command=self.reset_animation, **btn_style)
 
-        # Horizontal row
+        # Tick-by-tick controls
+        self.prev_tick_btn = tk.Button(controls, text="⏮ Prev", state='disabled', command=self.previous_tick, **small_btn_style)
+        self.next_tick_btn = tk.Button(controls, text="Next ⏭", state='disabled', command=self.next_tick, **small_btn_style)
+
+        # Speed control
+        speed_frame = tk.Frame(controls)
+        speed_frame.pack(fill='x', pady=5)
+        
+        tk.Label(speed_frame, text="Speed:", font=("Arial", 10)).pack(side='left', padx=5)
+        self.speed_var = tk.IntVar(value=5)
+        self.speed_slider = tk.Scale(speed_frame, from_=1, to=10, orient='horizontal', 
+                                   variable=self.speed_var, command=self.update_speed, 
+                                   length=200, font=("Arial", 9))
+        self.speed_slider.pack(side='left', padx=5)
+
+        # Main control row
+        main_controls = tk.Frame(controls)
+        main_controls.pack(fill='x', pady=5)
+        
         self.run_button.pack(side='left', expand=True, padx=5, pady=5)
         self.play_btn.pack(side='left', expand=True, padx=5, pady=5)
         self.pause_btn.pack(side='left', expand=True, padx=5, pady=5)
         self.reset_btn.pack(side='left', expand=True, padx=5, pady=5)
 
-        # Status
-        self.status_label = tk.Label(controls, text="Ready to run simulation", font=("Arial", 10))
-        self.status_label.pack(pady=(0, 8))
+        # Tick controls row
+        tick_controls = tk.Frame(controls)
+        tick_controls.pack(fill='x', pady=5)
+        
+        self.prev_tick_btn.pack(side='left', padx=5, pady=5)
+        self.next_tick_btn.pack(side='left', padx=5, pady=5)
+
+        # Status and tick display
+        status_frame = tk.Frame(controls)
+        status_frame.pack(fill='x', pady=5)
+        
+        self.status_label = tk.Label(status_frame, text="Ready to run simulation", font=("Arial", 10))
+        self.status_label.pack(side='left', padx=5)
+        
+        self.tick_label = tk.Label(status_frame, text="Tick: 0/0", font=("Arial", 10, "bold"), fg="#2c3e50")
+        self.tick_label.pack(side='right', padx=5)
 
         # ---------- Queue/CPU list displays (below the controls) ----------
         lists = tk.Frame(sim)
@@ -296,8 +336,18 @@ class MLFQGUI:
             anchor='w', padx=5, pady=(5, 0)
         )
 
-        self.timeline_canvas = tk.Canvas(anim, height=140, bg="white")
-        self.timeline_canvas.pack(fill='x', padx=5, pady=8)
+        # Create a frame for timeline with scrollbar
+        timeline_container = tk.Frame(anim)
+        timeline_container.pack(fill='both', expand=True, padx=5, pady=8)
+
+        self.timeline_canvas = tk.Canvas(timeline_container, height=140, bg="white")
+        
+        # Add horizontal scrollbar for long timelines
+        timeline_scrollbar = ttk.Scrollbar(timeline_container, orient='horizontal', command=self.timeline_canvas.xview)
+        self.timeline_canvas.configure(xscrollcommand=timeline_scrollbar.set)
+        
+        self.timeline_canvas.pack(side='top', fill='both', expand=True)
+        timeline_scrollbar.pack(side='bottom', fill='x')
 
         # ---------- Current settings ----------
         settings = tk.LabelFrame(sim, text="Current Settings", font=("Arial", 10, "bold"))
@@ -316,17 +366,21 @@ class MLFQGUI:
         self.notebook.add(self.results_tab, text="Results")
         results_frame = self.results_tab
         
-        # Timeline section
-        timeline_frame = tk.LabelFrame(results_frame, text="Execution Timeline", font=("Arial", 10, "bold"))
-        timeline_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        # Create main container with two sections
+        main_container = tk.Frame(results_frame)
+        main_container.pack(fill='both', expand=True, padx=10, pady=5)
         
-        # Uses tkinter.ScrolledText for displaying timeline (GeeksforGeeks: Python Tkinter ScrolledText)
-        self.timeline_text = scrolledtext.ScrolledText(timeline_frame, height=8, wrap='word', font=("Courier", 9))
+        # Timeline section (larger portion)
+        timeline_frame = tk.LabelFrame(main_container, text="Execution Timeline", font=("Arial", 12, "bold"))
+        timeline_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Uses tkinter.ScrolledText for displaying enhanced timeline (GeeksforGeeks: Python Tkinter ScrolledText)
+        self.timeline_text = scrolledtext.ScrolledText(timeline_frame, height=15, wrap='word', font=("Courier", 10))
         self.timeline_text.pack(fill='both', expand=True, padx=5, pady=5)
         
-        # Results table section
-        results_table_frame = tk.LabelFrame(results_frame, text="Process Results", font=("Arial", 10, "bold"))
-        results_table_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        # Results table section (smaller portion)
+        results_table_frame = tk.LabelFrame(main_container, text="Process Results Summary", font=("Arial", 10, "bold"))
+        results_table_frame.pack(fill='x', padx=5, pady=5)
         
         # Create results table
         columns = ('Process', 'Arrival', 'Burst', 'Priority', 'First Start', 'Completion', 'Turnaround', 'Waiting', 'Response')
@@ -494,12 +548,16 @@ class MLFQGUI:
         self.status_label.config(text="Simulation completed. Playing animation…")
 
         self.play_btn.config(state='normal')
-        self.pause_btn.config(state='normal')
+        self.pause_btn.config(state='disabled')
         self.reset_btn.config(state='normal')
+        self.prev_tick_btn.config(state='disabled')
+        self.next_tick_btn.config(state='normal' if len(self.frames) > 1 else 'disabled')
 
-        # reset animation surfaces
+        # reset animation surfaces and color mapping
         self.frame_i = 0
         self._g_idx  = 0
+        self.color_map = {}  # Reset color mapping for consistent colors
+        
         if hasattr(self, 'gantt_canvas'):
             self.gantt_canvas.delete('all')
         for lb in (getattr(self, 'lb_q0', None),
@@ -565,7 +623,14 @@ class MLFQGUI:
     def _color_for(self, pid):
         if not pid:    # Idle color
             return "#a6c8ff"
-        return "#%06x" % (abs(hash(pid)) & 0xFFFFFF)
+        
+        # Use consistent color mapping based on process name
+        if pid not in self.color_map:
+            # Assign colors from predefined palette
+            color_index = len(self.color_map) % len(self.palette)
+            self.color_map[pid] = self.palette[color_index]
+        
+        return self.color_map[pid]
 
     def _append_multirow_cells(self, fr):
         """Draw one time-slice for Q0, Q1, Q2, and CPU."""
@@ -575,15 +640,28 @@ class MLFQGUI:
         row_h  = getattr(self, '_row_h', 30)
         left_w = getattr(self, '_left_w', 70)
 
+        # Calculate responsive cell width
         if getattr(self, '_cell_w', None) is None:
             width = max(600, c.winfo_width())
-            self._cell_w = max(12, int((width - left_w) / max(1, len(self.frames))))
-        unit = self._cell_w
+            total_frames = max(1, len(self.frames))
+            
+            # Calculate minimum width needed for text readability
+            min_text_width = 50  # Minimum width for process names
+            available_width = width - left_w
+            
+            # Calculate optimal cell width
+            optimal_width = max(min_text_width, available_width // total_frames)
+            
+            # If we have too many frames, use minimum width and enable scrolling
+            if optimal_width < min_text_width:
+                optimal_width = min_text_width
+                # Store the total width needed for scrolling
+                self._total_timeline_width = left_w + (total_frames * optimal_width)
+            
+            self._cell_w = optimal_width
 
-        total = max(1, len(self.frames))
-        width = c.winfo_width() or 800
-        unit  = max(10, int((width - left_w) / total))
-        idx   = getattr(self, '_g_idx', 0)
+        unit = self._cell_w
+        idx = getattr(self, '_g_idx', 0)
 
         # What to show per row at this tick:
         q0_head = fr['queues'][0][0] if fr['queues'][0] else None
@@ -596,49 +674,131 @@ class MLFQGUI:
         x0 = left_w + idx * unit
         x1 = left_w + (idx + 1) * unit
 
+        # Calculate responsive font size based on cell width
+        font_size = self._calculate_font_size(unit)
+
         for r, pid in enumerate(rows):
             y0 = r * row_h
             y1 = y0 + row_h - 1
             col = self._color_for(pid)
             c.create_rectangle(x0, y0, x1, y1, fill=col, outline='black')
+            
+            # Use responsive font size and ensure text fits
+            text = pid if pid else "Idle"
             c.create_text((x0 + x1)/2, y0 + row_h/2,
-                        text=(pid if pid else "Idle"),
-                        font=("Arial", 8))
+                        text=text,
+                        font=("Arial", font_size))
         
-        # time tick label at the bottom row
-        c.create_text(x0 + 5, 4*row_h + 8, text=str(idx), anchor='w', font=("Arial", 7))
+        # time tick label at the bottom row with responsive font
+        tick_font_size = max(6, min(8, font_size - 1))
+        c.create_text(x0 + 5, 4*row_h + 8, text=str(idx), anchor='w', font=("Arial", tick_font_size))
 
         self._g_idx = idx + 1
 
+    def _calculate_font_size(self, cell_width):
+        """Calculate appropriate font size based on cell width to prevent text overlap."""
+        # Base font size calculation
+        if cell_width >= 80:
+            return 10
+        elif cell_width >= 60:
+            return 9
+        elif cell_width >= 40:
+            return 8
+        elif cell_width >= 30:
+            return 7
+        else:
+            return 6
+
 
     def play_animation(self):
+        """Start automated animation playback."""
+        if not self.frames:
+            return
         self._animating = True
-        def step():
-            if not self._animating: return
-            if self.frame_i < len(self.frames) - 1:
-                self.frame_i += 1
-                self._repaint_animation_frame()
-                delay = max(10, 300 - 25 * (self.speed.get() if hasattr(self, 'speed') else 5))
-                self.root.after(delay, step)
-            else:
-                self._animating = False
-        step()
+        self.play_btn.config(state='disabled')
+        self.pause_btn.config(state='normal')
+        self.prev_tick_btn.config(state='disabled')
+        self.next_tick_btn.config(state='disabled')
+        self._schedule_next_tick()
 
     def pause_animation(self):
+        """Pause the automated animation."""
         self._animating = False
+        if self._anim_after_id is not None:
+            self.root.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        self.play_btn.config(state='normal')
+        self.pause_btn.config(state='disabled')
+        self.prev_tick_btn.config(state='normal')
+        self.next_tick_btn.config(state='normal')
+        self.update_tick_display()
 
     def reset_animation(self):
+        """Reset animation to the beginning."""
         self._animating = False
+        if self._anim_after_id is not None:
+            self.root.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+        
         self.frame_i = 0
         self._g_idx = 0
-        if hasattr(self, 'gantt_canvas'):
-            self.gantt_canvas.delete('all')
-        self._repaint_animation_frame()
-
+        
+        # Clear and redraw timeline
         if hasattr(self, 'timeline_canvas'):
             self._init_timeline_canvas()
             if self.frames:
                 self._append_multirow_cells(self.frames[0])
+        
+        # Update controls
+        self.play_btn.config(state='normal')
+        self.pause_btn.config(state='disabled')
+        self.prev_tick_btn.config(state='disabled')
+        self.next_tick_btn.config(state='normal' if len(self.frames) > 1 else 'disabled')
+        self.update_tick_display()
+
+    def next_tick(self):
+        """Move to the next tick manually."""
+        if not self.frames or self.frame_i >= len(self.frames) - 1:
+            return
+        
+        self.frame_i += 1
+        self._repaint_animation_frame()
+        self.update_tick_display()
+        
+        # Update button states
+        self.prev_tick_btn.config(state='normal')
+        if self.frame_i >= len(self.frames) - 1:
+            self.next_tick_btn.config(state='disabled')
+
+    def previous_tick(self):
+        """Move to the previous tick manually."""
+        if not self.frames or self.frame_i <= 0:
+            return
+        
+        self.frame_i -= 1
+        self._repaint_animation_frame()
+        self.update_tick_display()
+        
+        # Update button states
+        self.next_tick_btn.config(state='normal')
+        if self.frame_i <= 0:
+            self.prev_tick_btn.config(state='disabled')
+
+    def update_speed(self, value):
+        """Update animation speed based on slider value."""
+        # Convert slider value (1-10) to delay in milliseconds
+        # 1 = fastest (50ms), 10 = slowest (500ms)
+        self.anim_delay_ms = int(50 + (int(value) - 1) * 50)
+
+    def update_tick_display(self):
+        """Update the tick display label."""
+        if not self.frames:
+            self.tick_label.config(text="Tick: 0/0")
+            return
+        
+        total_ticks = len(self.frames)
+        current_tick = self.frame_i + 1
+        self.tick_label.config(text=f"Tick: {current_tick}/{total_ticks}")
 
     def _start_animation(self):
         """Begin auto-playing the animation once frames are ready."""
@@ -670,6 +830,16 @@ class MLFQGUI:
         self._append_multirow_cells(fr)        
 
         self.frame_i += 1
+        self.update_tick_display()
+        
+        # Update button states
+        if self.frame_i >= self.anim_total:
+            self.next_tick_btn.config(state='disabled')
+        else:
+            self.next_tick_btn.config(state='normal')
+        
+        self.prev_tick_btn.config(state='normal')
+        
         self._schedule_next_tick()
 
     def _fill_queue_listboxes(self, fr):
@@ -686,15 +856,63 @@ class MLFQGUI:
 
     def _populate_results_tab(self):
         """Fill the Results tab using self.timeline and self.results."""
-        # ---- Timeline text ----
+        # ---- Enhanced Timeline text ----
         self.timeline_text.delete('1.0', 'end')
-        timeline_text = "Execution Timeline:\n"
-        timeline_text += "This shows when each process ran and in which queue:\n\n"
+        
+        # Header section
+        timeline_text = "=" * 80 + "\n"
+        timeline_text += "MLFQ CPU SCHEDULER - EXECUTION TIMELINE\n"
+        timeline_text += "=" * 80 + "\n\n"
+        
+        # Scheduling Rules Section
+        timeline_text += "SCHEDULING RULES:\n"
+        timeline_text += "-" * 40 + "\n"
+        timeline_text += f"• Time Quantum: {self.quantum.get()} time units\n"
+        timeline_text += f"• Demotion Threshold: {self.demote_threshold.get()} time units\n"
+        timeline_text += f"• Aging Threshold: {self.aging_threshold.get()} time units\n"
+        timeline_text += f"• Preemption: {'Enabled' if self.preempt.get() else 'Disabled'}\n\n"
+        
+        # Process Details Section
+        timeline_text += "PROCESS DETAILS:\n"
+        timeline_text += "-" * 40 + "\n"
+        timeline_text += f"{'Process':<10} {'Priority':<8} {'Arrival':<7} {'Burst':<6} {'Completion':<10} {'Turnaround':<10} {'Waiting':<8}\n"
+        timeline_text += "-" * 70 + "\n"
+        
+        for r in self.results:
+            timeline_text += f"{r['name']:<10} {r['priority']:<8} {r['arrival']:<7} {r['burst']:<6} "
+            timeline_text += f"{r['completion'] if r['completion'] is not None else 'N/A':<10} "
+            timeline_text += f"{r['turnaround'] if r['turnaround'] is not None else 'N/A':<10} "
+            timeline_text += f"{r['waiting']:<8}\n"
+        
+        timeline_text += "\n"
+        
+        # Execution Timeline Section
+        timeline_text += "EXECUTION TIMELINE:\n"
+        timeline_text += "-" * 40 + "\n"
+        timeline_text += "Time | Process | Queue | Action\n"
+        timeline_text += "-" * 40 + "\n"
+        
         if self.timeline:
-            timeline_str = " | ".join([f"{s}-{e}:{n}@Q{q}" for s, e, n, q in self.timeline])
-            timeline_text += timeline_str
+            for start, end, process, queue in self.timeline:
+                action = f"Executing in Q{queue}" if queue < 3 else "Running on CPU"
+                timeline_text += f"{start:4d} | {process:<7} | Q{queue:<4} | {action}\n"
         else:
-            timeline_text += "No processes were executed."
+            timeline_text += "No processes were executed.\n"
+        
+        timeline_text += "\n"
+        
+        # Time Axis Section
+        timeline_text += "TIME AXIS:\n"
+        timeline_text += "-" * 40 + "\n"
+        if self.timeline:
+            max_time = max(end for _, end, _, _ in self.timeline)
+            time_axis = " ".join([f"{i:2d}" for i in range(max_time + 1)])
+            timeline_text += f"Time: {time_axis}\n"
+        else:
+            timeline_text += "Time: No execution recorded\n"
+        
+        timeline_text += "\n" + "=" * 80 + "\n"
+        
         self.timeline_text.insert('1.0', timeline_text)
 
         # ---- Results table ----
@@ -757,6 +975,18 @@ class MLFQGUI:
         # ensure canvas tall enough for 4 rows + small time-axis strip
         c.config(height=self._row_h * 4 + 18)
 
+        # Calculate timeline width - use stored width if available, otherwise calculate
+        if hasattr(self, '_total_timeline_width'):
+            timeline_width = self._total_timeline_width
+        else:
+            # Estimate width based on frames
+            total_frames = len(self.frames) if self.frames else 1
+            min_cell_width = 50
+            timeline_width = self._left_w + (total_frames * min_cell_width)
+        
+        # Set scroll region for horizontal scrolling
+        c.configure(scrollregion=(0, 0, timeline_width, self._row_h * 4 + 18))
+
         # draw row labels + horizontal separators
         width = c.winfo_width() or 800
         for i, label in enumerate(rows):
@@ -768,7 +998,7 @@ class MLFQGUI:
             c.create_text(self._left_w - 5, (y0 + y1) / 2, text=label,
                         anchor='e', font=("Arial", 9, "bold"))
             # row separator line across the timeline area
-            c.create_line(self._left_w, y1, width, y1, fill="#cccccc")
+            c.create_line(self._left_w, y1, timeline_width, y1, fill="#cccccc")
 
         # small 't' mark for time axis below rows
         c.create_text(5, self._row_h * 4 + 8, text="t", anchor='w', font=("Arial", 8))
