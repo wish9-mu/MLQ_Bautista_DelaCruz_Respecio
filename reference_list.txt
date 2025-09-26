@@ -179,16 +179,62 @@ For beginners learning Python with this MLFQ scheduler project, these topics are
    - String formatting
    - Display formatting
 
-HOW TO USE THIS REFERENCE LIST:
-==============================
+APA REFERENCE LIST - SIMPLE_PROCESS.PY
+======================================
 
-1. When you encounter a concept in the code that you don't understand, look it up in this list
-2. Visit the corresponding URL to learn more about that Python concept
-3. Practice the examples provided in the tutorials
-4. Apply what you learn by modifying the MLFQ scheduler code
-5. Use these resources to build your understanding of Python programming
+This section contains the complete APA reference list for all citations used in simple_process.py
 
-This reference list covers all the Python concepts used in the beginner-friendly MLFQ scheduler, providing a comprehensive learning path for Python beginners.
+GeeksforGeeks. (2025). Python OS Module. Retrieved from https://www.geeksforgeeks.org/python-os-path-exists-method/
 
-Generated on: $(date)
-Project: Simple MLFQ CPU Scheduler for Python Beginners
+GeeksforGeeks. (2025). Enumerate in Python. Retrieved from https://www.geeksforgeeks.org/enumerate-in-python/
+
+GeeksforGeeks. (2025). Python String startswith() Method. Retrieved from https://www.geeksforgeeks.org/python-string-startswith-method/
+
+GeeksforGeeks. (2025). Python String upper() Method. Retrieved from https://www.geeksforgeeks.org/python-string-upper-method/
+
+GeeksforGeeks. (2025). Python Exception Handling. Retrieved from https://www.geeksforgeeks.org/python-exception-handling/
+
+GeeksforGeeks. (2025). Python Operators. Retrieved from https://www.geeksforgeeks.org/python-operators/
+
+GeeksforGeeks. (2025). Python None Keyword. Retrieved from https://www.geeksforgeeks.org/python-none-keyword/
+
+W3Schools. (2025). Python Modules. Retrieved from https://www.w3schools.com/python/python_modules.asp
+
+W3Schools. (2025). Python Variables. Retrieved from https://www.w3schools.com/python/python_variables.asp
+
+W3Schools. (2025). Python Lists. Retrieved from https://www.w3schools.com/python/python_lists.asp
+
+W3Schools. (2025). Python File Handling. Retrieved from https://www.w3schools.com/python/python_file_handling.asp
+
+W3Schools. (2025). Python Strings. Retrieved from https://www.w3schools.com/python/python_strings.asp
+
+W3Schools. (2025). Python Conditions. Retrieved from https://www.w3schools.com/python/python_conditions.asp
+
+W3Schools. (2025). Python Built-in Functions. Retrieved from https://www.w3schools.com/python/python_ref_functions.asp
+
+W3Schools. (2025). Python List Access. Retrieved from https://www.w3schools.com/python/python_lists_access.asp
+
+W3Schools. (2025). Python Type Casting. Retrieved from https://www.w3schools.com/python/python_casting.asp
+
+W3Schools. (2025). Python Try Except. Retrieved from https://www.w3schools.com/python/python_try_except.asp
+
+W3Schools. (2025). Python String Formatting. Retrieved from https://www.w3schools.com/python/python_string_formatting.asp
+
+W3Schools. (2025). Python List Add Items. Retrieved from https://www.w3schools.com/python/python_lists_add.asp
+
+W3Schools. (2025). Python Tuples. Retrieved from https://www.w3schools.com/python/python_tuples.asp
+
+W3Schools. (2025). Python Functions. Retrieved from https://www.w3schools.com/python/python_functions.asp
+
+W3Schools. (2025). Python Classes. Retrieved from https://www.w3schools.com/python/python_classes.asp
+
+W3Schools. (2025). Python Numbers. Retrieved from https://www.w3schools.com/python/python_numbers.asp
+
+NOTES:
+======
+- Total References: 23 references
+- Sources: 2 main sources (W3Schools and GeeksforGeeks)
+- Format: All references follow APA 7th edition format
+- Access Date: All references use 2025 as the access year
+- URLs: All URLs are included as specified in the code comments
+
