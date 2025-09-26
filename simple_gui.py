@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog
 import threading
 import os
-from simple_process import Process, DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_DEMOTE_THRESHOLD, DEFAULT_AGING_THRESHOLD
+from simple_process import Process, DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_DEMOTE_THRESHOLD, DEFAULT_AGING_THRESHOLD, load_defaults
 from simple_scheduler import SimpleMLFQScheduler
 
 class MLFQGUI:
@@ -32,9 +32,9 @@ class MLFQGUI:
         # These automatically update the GUI when changed
         self.num_processes = tk.IntVar(value=len(DEFAULT_PROCESSES))
         # Separate quantums for each queue (Q0=highest priority, Q2=lowest priority)
-        self.quantum_q0 = tk.IntVar(value=2)  # Highest priority - shortest quantum
-        self.quantum_q1 = tk.IntVar(value=4)  # Medium priority - medium quantum  
-        self.quantum_q2 = tk.IntVar(value=8)  # Lowest priority - longest quantum
+        self.quantum_q0 = tk.IntVar(value=3)  # Highest priority - shortest quantum
+        self.quantum_q1 = tk.IntVar(value=3)  # Medium priority - medium quantum  
+        self.quantum_q2 = tk.IntVar(value=3)  # Lowest priority - longest quantum
         self.demote_threshold = tk.IntVar(value=DEFAULT_DEMOTE_THRESHOLD)
         self.aging_threshold = tk.IntVar(value=DEFAULT_AGING_THRESHOLD)
         self.preempt = tk.BooleanVar(value=True)
@@ -445,15 +445,27 @@ class MLFQGUI:
         use_defaults = self.use_default_processes.get()
         self.custom_frame.pack(fill='both', expand=True, padx=10, pady=5)
 
+        n = max(1, int(self.num_processes.get()))
+
         # Enable/disable the number of processes spinbox
         if use_defaults:
             self.count_spinbox.config(state='disabled')
             self.help_label.config(text="Using default processes - editing disabled")
+
+            (q0, q1, q2), demote, aging, file_procs = load_defaults("default_processes.txt")
+
+            self.quantum_q0.set(q0)
+            self.quantum_q1.set(q1)
+            self.quantum_q2.set(q2)
+            self.demote_threshold.set(demote)
+            self.aging_threshold.set(aging)
+
+            src = file_procs
+            for name, arrival, burst, priority in src[:n]:
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
         else:
             self.count_spinbox.config(state='normal')
             self.help_label.config(text="💡 Double-click on Arrival, Burst, or Priority to edit values")
-
-        n = max(1, int(self.num_processes.get()))
 
         # If we're switching FROM defaults TO custom, seed custom_processes
         # with whatever is currently visible (the default rows).
@@ -508,6 +520,7 @@ class MLFQGUI:
             # Store the loaded file info
             self.loaded_file_path = file_path
             self.loaded_file_processes = processes
+            self._try_read_settings_from_file(file_path)
             
             # Update UI
             filename = os.path.basename(file_path)
@@ -527,54 +540,109 @@ class MLFQGUI:
             messagebox.showerror("File Error", f"Error loading file: {str(e)}")
     
     def parse_process_file(self, file_path):
-        """Parse a .txt file containing process definitions.
-        
-        Expected format (one process per line):
-        ProcessName ArrivalTime BurstTime Priority
-        
-        Example:
-        P1 0 5 1
-        P2 2 3 2
-        P3 4 7 1
-        """
         processes = []
+        found = {}
         
         with open(file_path, 'r') as file:
-            lines = file.readlines()
-        
-        for line_num, line in enumerate(lines, 1):
-            line = line.strip()
-            
-            # Skip empty lines and comments
-            if not line or line.startswith('#'):
-                continue
-            
-            try:
-                parts = line.split()
-                if len(parts) != 4:
-                    raise ValueError(f"Line {line_num}: Expected 4 values (name, arrival, burst, priority)")
-                
-                name = parts[0]
-                arrival = int(parts[1])
-                burst = int(parts[2])
-                priority = int(parts[3])
-                
-                # Validate values
-                if arrival < 0:
-                    raise ValueError(f"Line {line_num}: Arrival time must be >= 0")
-                if burst < 1:
-                    raise ValueError(f"Line {line_num}: Burst time must be >= 1")
-                if priority < 1 or priority > 3:
-                    raise ValueError(f"Line {line_num}: Priority must be between 1 and 3")
-                
-                processes.append((name, arrival, burst, priority))
-                
-            except ValueError as e:
-                raise ValueError(f"Line {line_num}: {str(e)}")
-            except Exception as e:
-                raise ValueError(f"Line {line_num}: Invalid format - {str(e)}")
-        
+            for line_num, line in enumerate(file, 1):
+                s = line.strip()
+                if not s or s.startswith('#'):
+                    continue
+
+                parts = s.split()
+
+                # --- SETTINGS PAIRS (optional) ---
+                if len(parts) == 2:
+                    key = parts[0].upper()
+                    if key in ("Q0", "Q1", "Q2", "DEMOTE", "AGING"):
+                        try:
+                            found[key] = int(parts[1])
+                        except ValueError:
+                            raise ValueError(f"Line {line_num}: {key} must be an integer")
+                        continue  # don't treat as a process line
+
+                # --- PROCESS ROWS (required format) ---
+                if len(parts) == 4:
+                    name = parts[0]
+                    try:
+                        arrival = int(parts[1])
+                        burst   = int(parts[2])
+                        prio    = int(parts[3])
+                    except ValueError:
+                        raise ValueError(f"Line {line_num}: invalid process numbers")
+
+                    if arrival < 0:
+                        raise ValueError(f"Line {line_num}: Arrival time must be >= 0")
+                    if burst < 1:
+                        raise ValueError(f"Line {line_num}: Burst time must be >= 1")
+                    if prio not in (1, 2, 3):
+                        raise ValueError(f"Line {line_num}: Priority must be between 1 and 3")
+
+                    processes.append((name, arrival, burst, prio))
+                    continue
+
+                # Anything else is neither a valid setting nor a process
+                raise ValueError(
+                    f"Line {line_num}: Expected a setting "
+                    f"(Q0/Q1/Q2/DEMOTE/AGING <int>) or 4 values (name, arrival, burst, priority)"
+                )
+
+        # Apply any optional settings we found (file-first; if missing, keep current GUI values)
+        if "Q0" in found:     self.quantum_q0.set(found["Q0"])
+        if "Q1" in found:     self.quantum_q1.set(found["Q1"])
+        if "Q2" in found:     self.quantum_q2.set(found["Q2"])
+        if "DEMOTE" in found: self.demote_threshold.set(found["DEMOTE"])
+        if "AGING" in found:  self.aging_threshold.set(found["AGING"])
+
+        # If no process lines were provided, keep current behavior (you can choose to allow empty)
+        if not processes:
+            raise ValueError("No process rows found in file")
+
         return processes
+    
+    def _try_read_settings_from_file(self, path):
+        """
+        OPTIONAL settings reader: If the file contains lines like
+        Q0/Q1/Q2/DEMOTE/AGING, apply them to the GUI.
+        If none are present, do nothing (no error).
+        """
+        if not os.path.exists(path):
+            return
+        found_any = False
+        q0 = q1 = q2 = None
+        demote = aging = None
+
+        with open(path, "r") as f:
+            for line in f:
+                s = line.strip()
+                if not s or s.startswith("#"):
+                    continue
+                parts = s.split()
+                if len(parts) != 2:
+                    continue
+                key, val = parts[0].upper(), parts[1]
+                try:
+                    ival = int(val)
+                except ValueError:
+                    continue
+
+                if key == "Q0":      q0 = ival;    found_any = True
+                elif key == "Q1":    q1 = ival;    found_any = True
+                elif key == "Q2":    q2 = ival;    found_any = True
+                elif key == "DEMOTE": demote = ival; found_any = True
+                elif key == "AGING":  aging  = ival; found_any = True
+
+        if not found_any:
+            return  # optional: nothing to apply
+
+        if q0 is not None:      self.quantum_q0.set(q0)
+        if q1 is not None:      self.quantum_q1.set(q1)
+        if q2 is not None:      self.quantum_q2.set(q2)
+        if demote is not None:  self.demote_threshold.set(demote)
+        if aging is not None:   self.aging_threshold.set(aging)
+
+        # also refresh the right-side “Current Settings” text
+        self.update_settings_display()
     
     def clear_uploaded_file(self):
         """Clear the uploaded file and return to default processes."""

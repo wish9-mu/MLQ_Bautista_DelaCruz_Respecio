@@ -1,6 +1,57 @@
 # Simple Process Class for MLFQ Scheduler
 # This file defines what a process looks like in our simulation
 
+import os
+
+def load_defaults(path="default_processes.txt"):
+    """
+    Load scheduler settings + processes from file.
+    Priority: file values first, fallback = hardcoded.
+    Returns ((q0,q1,q2), demote, aging, process_list).
+    """
+    # Fallbacks
+    q0, q1, q2 = 3, 3, 3
+    demote, aging = 6, 5
+    processes = list(DEFAULT_PROCESSES)
+
+    if not os.path.exists(path):
+        return (q0, q1, q2), demote, aging, processes
+
+    read_procs = []
+    with open(path, "r") as f:
+        for line_num, line in enumerate(f, 1):
+            s = line.strip()
+            if not s or s.startswith("#"): 
+                continue
+            parts = s.split()
+            # Settings
+            if len(parts) == 2:
+                key, val = parts[0].upper(), parts[1]
+                try:
+                    ival = int(val)
+                except ValueError:
+                    continue
+                if key == "Q0": q0 = ival
+                elif key == "Q1": q1 = ival
+                elif key == "Q2": q2 = ival
+                elif key == "DEMOTE": demote = ival
+                elif key == "AGING": aging = ival
+            # Processes
+            elif len(parts) == 4:
+                name = parts[0]
+                try:
+                    arrival = int(parts[1])
+                    burst = int(parts[2])
+                    prio = int(parts[3])
+                except ValueError:
+                    raise ValueError(f"Line {line_num}: invalid process values")
+                read_procs.append((name, arrival, burst, prio))
+
+    if read_procs:
+        processes = read_procs
+    return (q0, q1, q2), demote, aging, processes
+
+
 class Process:
     """
     A simple class to represent a process in our CPU scheduler.

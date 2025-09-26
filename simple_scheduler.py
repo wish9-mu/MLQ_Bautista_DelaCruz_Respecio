@@ -6,27 +6,8 @@ from simple_process import Process
 from copy import deepcopy
 
 class SimpleMLFQScheduler:
-    """
-    A simple Multi-Level Feedback Queue scheduler.
     
-    How it works:
-    1. There are 3 queues (levels): 0 (highest priority), 1 (medium), 2 (lowest)
-    2. New processes start in a queue based on their priority
-    3. Each queue has a time quantum (how long a process can run)
-    4. If a process doesn't finish in its quantum, it moves to the next lower queue
-    5. Processes can move up in priority if they wait too long (aging)
-    """
-    
-    def __init__(self, quantums=[2, 4, 8], demote_threshold=6, aging_threshold=5, preempt=True):
-        """
-        Create a new MLFQ scheduler.
-        
-        Parameters:
-        - quantums: List of time quantums for each queue [Q0, Q1, Q2] (default: [2, 4, 8])
-        - demote_threshold: How long a process can run before moving to lower priority
-        - aging_threshold: How long a process waits before moving to higher priority
-        - preempt: Whether to interrupt a running process when a higher priority one arrives
-        """
+    def __init__(self, quantums=[3, 3, 3], demote_threshold=6, aging_threshold=5, preempt=True):
         # Support both old single quantum and new separate quantums for backward compatibility
         if isinstance(quantums, int):
             # Old format: single quantum for all queues
