@@ -268,10 +268,43 @@ class SimpleMLFQScheduler:
         frames = []
 
         def snapshot(running_name):
+            # Create detailed queue information with process attributes
+            detailed_queues = []
+            for queue_level in range(3):
+                queue_info = []
+                for process_name in self.queues[queue_level]:
+                    if process_name in self.processes:
+                        process = self.processes[process_name]
+                        queue_info.append({
+                            'name': process_name,
+                            'arrival': process.arrival_time,
+                            'burst': process.burst_time,
+                            'priority': process.priority,
+                            'waiting': process.waiting_time,
+                            'remaining': process.remaining_time,
+                            'processing_time': process.burst_time - process.remaining_time
+                        })
+                detailed_queues.append(queue_info)
+            
+            # Get running process details
+            running_info = None
+            if running_name and running_name in self.processes:
+                process = self.processes[running_name]
+                running_info = {
+                    'name': running_name,
+                    'arrival': process.arrival_time,
+                    'burst': process.burst_time,
+                    'priority': process.priority,
+                    'waiting': process.waiting_time,
+                    'remaining': process.remaining_time,
+                    'execution_time': process.burst_time - process.remaining_time,
+                    'processing_time': process.burst_time - process.remaining_time
+                }
+            
             frames.append({
                 't': self.current_time,
-                'queues': [list(q) for q in self.queues],  # copy queue names
-                'running': running_name
+                'queues': detailed_queues,
+                'running': running_info
             })
 
         # ----- (copy the simulate() body,
