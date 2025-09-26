@@ -7,24 +7,19 @@ from copy import deepcopy
 
 class SimpleMLFQScheduler:
     
+    # Set in here are defaults
     def __init__(self, quantums=[3, 3, 3], demote_threshold=6, aging_threshold=5, preempt=True):
-        # Support both old single quantum and new separate quantums for backward compatibility
-        if isinstance(quantums, int):
-            # Old format: single quantum for all queues
-            self.quantums = [quantums, quantums, quantums]
-        else:
-            # New format: separate quantums for each queue
-            self.quantums = quantums[:3]  # Ensure we only take first 3 values
         
+        self.quantums = quantums
         self.demote_threshold = demote_threshold
         self.aging_threshold = aging_threshold
         self.preempt = preempt
         
-        # Create 3 queues (0 = highest priority, 2 = lowest priority)
-        self.queues = [[], [], []]  # Each queue is a list of process names
+        # Create 3 queues with each queue as a list of processes
+        self.queues = [[], [], []]
         
-        # Keep track of all processes
-        self.processes = {}  # Dictionary: process_name -> Process object
+        # Keep track of all processes, where in process_name -> Process object
+        self.processes = {} 
         
         # Keep track of what happened during simulation
         self.timeline = []  # List of (start_time, end_time, process_name, queue_level)
@@ -33,7 +28,7 @@ class SimpleMLFQScheduler:
         self.current_time = 0
         
     def add_process(self, process):
-        """Add a process to the scheduler."""
+        # Adds a process to the scheduler.
         # Uses dictionary assignment to store the process (W3Schools: Python Dictionaries)
         # This lets us find the process later using its name as a key
         self.processes[process.name] = process
@@ -42,7 +37,7 @@ class SimpleMLFQScheduler:
         self._add_to_queue(process, process.queue_level)
         
     def _add_to_queue(self, process, queue_level):
-        """Add a process to a specific queue."""
+        # Add a process to a specific queue (priority level).
         # Uses assignment to update the process's queue level (W3Schools: Python Variables)
         # This keeps track of which queue the process is currently in
         process.queue_level = queue_level
@@ -54,13 +49,13 @@ class SimpleMLFQScheduler:
         self.queues[queue_level].append(process.name)
         
     def _get_next_process(self):
-        """Get the next process to run (from the highest priority non-empty queue)."""
+        # Get the next process to run (from the highest priority non-empty queue).
         # Uses for loop with range(3) to check all three queues (W3Schools: Python For Loops)
         # We check queue 0 first (highest priority), then 1, then 2 (lowest priority)
         for queue_level in range(3):  # Check queues 0, 1, 2
             # Uses if statement to check if queue has processes (W3Schools: Python If Statement)
             # Empty lists are False, non-empty lists are True
-            if self.queues[queue_level]:  # If this queue has processes
+            if self.queues[queue_level]:  
                 # Uses list.pop(0) to take the first process from the queue (W3Schools: Python List Methods)
                 # This removes it from the queue and returns the process name
                 process_name = self.queues[queue_level].pop(0)  # Take the first one
@@ -72,7 +67,7 @@ class SimpleMLFQScheduler:
         return None  # No processes ready
     
     def _update_waiting_times(self, process):
-        """Update how long this process has been waiting."""
+        # Update how long this process has been waiting.
         # Uses hasattr() to check if the process has a last_ready_time attribute (GeeksforGeeks: Python hasattr)
         # Uses is not None to check if the attribute has a value (W3Schools: Python If Statement)
         if hasattr(process, 'last_ready_time') and process.last_ready_time is not None:
