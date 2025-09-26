@@ -169,7 +169,7 @@ class MLFQGUI:
         help_text_frame.pack(fill='x', padx=5, pady=(5, 0))
         
         self.help_label = tk.Label(help_text_frame, 
-                                  text="💡 Double-click on Arrival, Burst, or Priority to edit values", 
+                                  text="💡 Double-click on Arrival, BT_Now, PT_Now, or PT_Used to edit values", 
                                   font=("Arial", 9), 
                                   fg="#666666",
                                   wraplength=300)
@@ -180,7 +180,7 @@ class MLFQGUI:
         list_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         # Uses tkinter.Treeview for displaying process list (GeeksforGeeks: Python Tkinter Treeview)
-        columns = ('Name', 'Arrival', 'Burst', 'Priority')
+        columns = ('Name', 'Arrival', 'BT_Now', 'PT_Now', 'PT_Used')
         self.process_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=8)
         
         # Set column headings
@@ -271,9 +271,18 @@ class MLFQGUI:
         • Aging Threshold: How long a process waits before moving to higher priority
         • Preemption: Whether to interrupt running processes for higher priority ones
         
+        Process Attributes:
+        • BT_Now: Burst Time (total CPU time needed)
+        • PT_Now: Priority Level (1=highest, 3=lowest)
+        • PT_Used: Processing Time Used (CPU time used so far)
+        • WT_Now: Waiting Time (time spent waiting in queues)
+        
+        Queue Display Abbreviations:
+        • BT: Burst Time, PT: Priority Level, WT: Waiting Time, AT: Arrival Time
+        
         File Upload Format (.txt):
-        ProcessName ArrivalTime BurstTime Priority
-        Example: P1 0 5 1
+        ProcessName ArrivalTime BT_Now PT_Now PT_Used
+        Example: P1 0 5 1 0
         
         Tip: Use the default values for your first simulation!
         """
@@ -431,19 +440,40 @@ class MLFQGUI:
         # Create the results display tab.
         # Uses tkinter.Frame to create a tab for showing results
         self.results_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.results_tab, text="Results")
+        self.notebook.add(self.results_tab, text="Simulation Results")
         results_frame = self.results_tab
         
         # Create main container with two sections
         main_container = tk.Frame(results_frame)
         main_container.pack(fill='both', expand=True, padx=10, pady=5)
         
-        # Timeline section (larger portion)
-        timeline_frame = tk.LabelFrame(main_container, text="Execution Timeline", font=("Arial", 12, "bold"))
-        timeline_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        # Timeline Grid section (new grid-based visualization)
+        timeline_grid_frame = tk.LabelFrame(main_container, text="Animation - Simulation Timeline", font=("Arial", 12, "bold"))
+        timeline_grid_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Create canvas for the timeline grid with scrollbars
+        timeline_container = tk.Frame(timeline_grid_frame)
+        timeline_container.pack(fill='both', expand=True, padx=5, pady=5)
+        
+        # Timeline grid canvas
+        self.timeline_grid_canvas = tk.Canvas(timeline_container, bg="white", height=200)
+        
+        # Add scrollbars for the timeline grid
+        timeline_v_scrollbar = ttk.Scrollbar(timeline_container, orient='vertical', command=self.timeline_grid_canvas.yview)
+        timeline_h_scrollbar = ttk.Scrollbar(timeline_container, orient='horizontal', command=self.timeline_grid_canvas.xview)
+        self.timeline_grid_canvas.configure(yscrollcommand=timeline_v_scrollbar.set, xscrollcommand=timeline_h_scrollbar.set)
+        
+        # Pack canvas and scrollbars
+        self.timeline_grid_canvas.pack(side='left', fill='both', expand=True)
+        timeline_v_scrollbar.pack(side='right', fill='y')
+        timeline_h_scrollbar.pack(side='bottom', fill='x')
+        
+        # Timeline text section (smaller portion)
+        timeline_text_frame = tk.LabelFrame(main_container, text="Detailed Timeline", font=("Arial", 10, "bold"))
+        timeline_text_frame.pack(fill='x', padx=5, pady=5)
         
         # Uses tkinter.ScrolledText for displaying enhanced timeline (GeeksforGeeks: Python Tkinter ScrolledText)
-        self.timeline_text = scrolledtext.ScrolledText(timeline_frame, height=15, wrap='word', font=("Courier", 10))
+        self.timeline_text = scrolledtext.ScrolledText(timeline_text_frame, height=8, wrap='word', font=("Courier", 9))
         self.timeline_text.pack(fill='both', expand=True, padx=5, pady=5)
         
         # Results table section (smaller portion)
@@ -451,11 +481,11 @@ class MLFQGUI:
         results_table_frame.pack(fill='x', padx=5, pady=5)
         
         # Create results table
-        columns = ('Process', 'Arrival', 'Burst', 'Priority', 'First Start', 'Completion', 'Turnaround', 'Waiting', 'Response')
+        columns = ('Process', 'Arrival', 'BT_Now', 'PT_Now', 'PT_Used', 'First Start', 'Completion', 'Turnaround', 'WT_Now', 'Response')
         self.results_tree = ttk.Treeview(results_table_frame, columns=columns, show='headings', height=6)
         
         # Set column headings and widths
-        column_widths = {'Process': 60, 'Arrival': 60, 'Burst': 60, 'Priority': 60, 'First Start': 80, 'Completion': 80, 'Turnaround': 80, 'Waiting': 70, 'Response': 70}
+        column_widths = {'Process': 60, 'Arrival': 60, 'BT_Now': 60, 'PT_Now': 60, 'PT_Used': 60, 'First Start': 80, 'Completion': 80, 'Turnaround': 80, 'WT_Now': 70, 'Response': 70}
         for col in columns:
             self.results_tree.heading(col, text=col)
             self.results_tree.column(col, width=column_widths.get(col, 60))
@@ -497,10 +527,10 @@ class MLFQGUI:
 
             src = file_procs
             for name, arrival, burst, priority in src[:n]:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
         else:
             self.count_spinbox.config(state='normal')
-            self.help_label.config(text="💡 Double-click on Arrival, Burst, or Priority to edit values")
+            self.help_label.config(text="💡 Double-click on Arrival, BT_Now, PT_Now, or PT_Used to edit values")
 
         # If we're switching FROM defaults TO custom, seed custom_processes
         # with whatever is currently visible (the default rows).
@@ -524,11 +554,11 @@ class MLFQGUI:
         if use_defaults:
             # Exactly N defaults
             for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
         else:
             # Use the seeded custom rows, then ensure we have exactly N
             for name, arrival, burst, priority in self.custom_processes:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
             self._ensure_custom_row_count(n)
 
         self.update_settings_display()
@@ -725,7 +755,7 @@ class MLFQGUI:
                 # Fallback if we ran out of built-ins
                 name, arrival, burst, priority = next_name, 0, 1, 1
 
-            self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+            self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
             if not self.use_default_processes.get():
                 self.custom_processes.append((name, arrival, burst, priority))
             cur_n += 1
@@ -760,9 +790,9 @@ class MLFQGUI:
         if not row_id or not col_id:
             return
 
-        # Column mapping: #1=Name (locked), #2=Arrival, #3=Burst, #4=Priority
+        # Column mapping: #1=Name (locked), #2=Arrival, #3=BT_Now, #4=PT_Now, #5=PT_Used
         if col_id == "#1":
-            messagebox.showinfo("Name Locked", "Process names are automatically generated (P1, P2, P3...).\nDouble-click on Arrival, Burst, or Priority columns to edit those values.")
+            messagebox.showinfo("Name Locked", "Process names are automatically generated (P1, P2, P3...).\nDouble-click on Arrival, BT_Now, PT_Now, or PT_Used columns to edit those values.")
             return
 
         bbox = self.process_tree.bbox(row_id, col_id)
@@ -813,13 +843,17 @@ class MLFQGUI:
             if val < 0:
                 messagebox.showerror("Invalid Arrival", "Arrival must be ≥ 0.")
                 return
-        elif idx == 2:      # Burst
+        elif idx == 2:      # BT_Now
             if val < 1:
-                messagebox.showerror("Invalid Burst", "Burst must be ≥ 1.")
+                messagebox.showerror("Invalid BT_Now", "BT_Now must be ≥ 1.")
                 return
-        elif idx == 3:      # Priority
+        elif idx == 3:      # PT_Now
             if val < 1 or val > 3:
-                messagebox.showerror("Invalid Priority", "Priority must be between 1 and 3.")
+                messagebox.showerror("Invalid PT_Now", "PT_Now must be between 1 and 3.")
+                return
+        elif idx == 4:      # PT_Used
+            if val < 0:
+                messagebox.showerror("Invalid PT_Used", "PT_Used must be ≥ 0.")
                 return
 
         # Write back to Treeview
@@ -840,7 +874,7 @@ class MLFQGUI:
             for item in self.process_tree.get_children():
                 self.process_tree.delete(item)
             for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
         else:
             # If custom list is empty (first-time custom), seed from defaults[:n]
             if not self.custom_processes:
@@ -849,7 +883,7 @@ class MLFQGUI:
                 for item in self.process_tree.get_children():
                     self.process_tree.delete(item)
                 for name, arrival, burst, priority in self.custom_processes:
-                    self.process_tree.insert('', 'end', values=(name, arrival, burst, priority))
+                    self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
             # then enforce exact N in custom mode (adds beyond using remaining defaults if available)
             self._ensure_custom_row_count(n)
 
@@ -1138,7 +1172,111 @@ class MLFQGUI:
         
         return self.color_map[pid]
 
-
+    def _draw_timeline_grid(self):
+        """Draw the grid-based timeline visualization showing Q0, Q1, Q2, and CPU rows."""
+        if not hasattr(self, 'timeline_grid_canvas') or not self.timeline:
+            return
+            
+        canvas = self.timeline_grid_canvas
+        canvas.delete('all')
+        
+        # Calculate layout
+        canvas_width = canvas.winfo_width() or 800
+        canvas_height = canvas.winfo_height() or 200
+        
+        # Grid dimensions
+        cell_width = 30
+        cell_height = 35
+        header_height = 25
+        
+        # Find the maximum time from timeline
+        max_time = max(end for _, end, _, _ in self.timeline) if self.timeline else 0
+        
+        # Calculate total grid dimensions
+        total_width = max(canvas_width, (max_time + 1) * cell_width + 100)
+        total_height = header_height + 4 * cell_height + 20  # 4 rows: Q0, Q1, Q2, CPU
+        
+        # Set scroll region
+        canvas.configure(scrollregion=(0, 0, total_width, total_height))
+        
+        # Draw headers
+        headers = ['Q0 (Highest)', 'Q1', 'Q2', 'CPU (Running)']
+        for i, header in enumerate(headers):
+            y_pos = header_height + i * cell_height
+            canvas.create_text(10, y_pos + cell_height//2, text=header, 
+                             font=("Arial", 10, "bold"), anchor='w')
+        
+        # Draw time axis
+        for t in range(max_time + 1):
+            x_pos = 100 + t * cell_width
+            canvas.create_text(x_pos + cell_width//2, header_height//2, text=str(t), 
+                             font=("Arial", 9), anchor='center')
+        
+        # Create a grid to track what's in each cell
+        grid_data = {}
+        for queue_level in range(3):  # Q0, Q1, Q2
+            grid_data[queue_level] = {}
+            for t in range(max_time + 1):
+                grid_data[queue_level][t] = None
+        
+        # CPU row
+        grid_data['cpu'] = {}
+        for t in range(max_time + 1):
+            grid_data['cpu'][t] = None
+        
+        # Fill the grid with timeline data
+        for start, end, process_name, queue_level in self.timeline:
+            for t in range(start, end):
+                if t <= max_time:
+                    if queue_level < 3:  # Process in queue
+                        grid_data[queue_level][t] = process_name
+                    # Also mark CPU execution
+                    grid_data['cpu'][t] = process_name
+        
+        # Draw the grid cells
+        for queue_level in range(3):  # Q0, Q1, Q2
+            for t in range(max_time + 1):
+                x_pos = 100 + t * cell_width
+                y_pos = header_height + queue_level * cell_height
+                
+                process_name = grid_data[queue_level][t]
+                if process_name:
+                    # Process is in this queue at this time
+                    color = self._color_for(process_name)
+                    canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
+                                         fill=color, outline='black', width=1)
+                    canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
+                                     text=process_name, font=("Arial", 9, "bold"), 
+                                     fill="white", anchor='center')
+                else:
+                    # Empty cell
+                    canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
+                                         fill="#f0f0f0", outline='black', width=1)
+                    canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
+                                     text="Idle", font=("Arial", 8), 
+                                     fill="#999999", anchor='center')
+        
+        # Draw CPU row
+        for t in range(max_time + 1):
+            x_pos = 100 + t * cell_width
+            y_pos = header_height + 3 * cell_height  # CPU is the 4th row
+            
+            process_name = grid_data['cpu'][t]
+            if process_name:
+                # Process is running on CPU
+                color = self._color_for(process_name)
+                canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
+                                     fill=color, outline='red', width=2)  # Red border for CPU
+                canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
+                                 text=process_name, font=("Arial", 9, "bold"), 
+                                 fill="white", anchor='center')
+            else:
+                # CPU is idle
+                canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
+                                     fill="#f0f0f0", outline='red', width=2)
+                canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
+                                 text="Idle", font=("Arial", 8), 
+                                 fill="#999999", anchor='center')
 
     def play_animation(self):
         # Start automated animation playback.
@@ -1310,6 +1448,10 @@ class MLFQGUI:
 
     def _populate_results_tab(self):
         # Fill the Results tab using self.timeline and self.results.
+        
+        # Draw the timeline grid visualization
+        self._draw_timeline_grid()
+        
         # ---- Enhanced Timeline text ----
         self.timeline_text.delete('1.0', 'end')
         
@@ -1331,11 +1473,12 @@ class MLFQGUI:
         # Process Details Section
         timeline_text += "PROCESS DETAILS:\n"
         timeline_text += "-" * 40 + "\n"
-        timeline_text += f"{'Process':<10} {'Priority':<8} {'Arrival':<7} {'Burst':<6} {'Completion':<10} {'Turnaround':<10} {'Waiting':<8}\n"
-        timeline_text += "-" * 70 + "\n"
+        timeline_text += f"{'Process':<10} {'PT_Now':<8} {'Arrival':<7} {'BT_Now':<6} {'PT_Used':<7} {'Completion':<10} {'Turnaround':<10} {'WT_Now':<8}\n"
+        timeline_text += "-" * 80 + "\n"
         
         for r in self.results:
-            timeline_text += f"{r['name']:<10} {r['priority']:<8} {r['arrival']:<7} {r['burst']:<6} "
+            pt_used = r['burst'] - (r['burst'] - r.get('remaining', 0)) if 'remaining' in r else r['burst']
+            timeline_text += f"{r['name']:<10} {r['priority']:<8} {r['arrival']:<7} {r['burst']:<6} {pt_used:<7} "
             timeline_text += f"{r['completion'] if r['completion'] is not None else 'N/A':<10} "
             timeline_text += f"{r['turnaround'] if r['turnaround'] is not None else 'N/A':<10} "
             timeline_text += f"{r['waiting']:<8}\n"
@@ -1376,8 +1519,9 @@ class MLFQGUI:
             self.results_tree.delete(item)
 
         for r in self.results:
+            pt_used = r['burst'] - (r['burst'] - r.get('remaining', 0)) if 'remaining' in r else r['burst']
             self.results_tree.insert('', 'end', values=(
-                r['name'], r['arrival'], r['burst'], r['priority'],
+                r['name'], r['arrival'], r['burst'], r['priority'], pt_used,
                 r['first_start'] if r['first_start'] is not None else "N/A",
                 r['completion']  if r['completion']  is not None else "N/A",
                 r['turnaround']  if r['turnaround']  is not None else "N/A",
@@ -1397,7 +1541,7 @@ class MLFQGUI:
             cpu_util = (total_bt / makespan) * 100 if makespan > 0 else 100.0
             summary_text = (
                 f"Summary Statistics:\n"
-                f"• Average Waiting Time: {avg_wait:.2f}\n"
+                f"• Average WT_Now: {avg_wait:.2f}\n"
                 f"• Average Turnaround Time: {avg_ta:.2f}\n"
                 f"• Average Response Time: {avg_resp:.2f}\n"
                 f"• CPU Utilization: {cpu_util:.2f}%\n"
