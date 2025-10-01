@@ -53,35 +53,23 @@ def load_defaults(path="default_processes.txt"):
 
 
 class Process:
-    """
-    A simple class to represent a process in our CPU scheduler.
-    Think of a process like a task that needs to be done.
-    """
     
     def __init__(self, name, arrival_time, burst_time, priority):
-        """
-        Create a new process.
-        
-        Parameters:
-        - name: A string like "P1", "P2", etc. (like giving a task a name)
-        - arrival_time: When the process arrives at the CPU (like when you start a task)
-        - burst_time: How much CPU time the process needs (like how long a task takes)
-        - priority: How important the process is (1 = most important, 3 = least important)
-        """
         self.name = name
         self.arrival_time = arrival_time
         self.burst_time = burst_time
         self.priority = priority
-        
-        # These will be set during simulation
         self.remaining_time = burst_time  # How much work is left
+        
         # Uses max() and min() to convert priority to queue level (W3Schools: Python Built-in Functions)
         # Priority 1 becomes queue 0 (highest), priority 2 becomes queue 1, priority 3 becomes queue 2
         self.queue_level = max(0, min(2, priority - 1))  # Which queue it starts in (0, 1, or 2)
         self.first_start_time = None  # When it first got CPU time
         self.completion_time = None   # When it finished completely
         self.waiting_time = 0         # Total time spent waiting
-        self.time_in_current_queue = 0  # Time spent in current queue level
+        self.process_time = 0         # Demotion counter
+        self.time_in_current_queue = 0  # Aging counter
+        self.enqueued_at = 0            # When the process was enqueued
         
     def is_finished(self):
         """Check if the process is completely done."""
