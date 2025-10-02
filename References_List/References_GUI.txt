@@ -1,0 +1,64 @@
+REFERENCES
+
+W3Schools. (2024). Python classes and objects. W3Schools. 
+https://www.w3schools.com/python/python_classes.asp
+
+W3Schools. (2024). Python file handling. W3Schools. 
+https://www.w3schools.com/python/python_file_handling.asp
+
+W3Schools. (2024). Python GUI programming. W3Schools. 
+https://www.w3schools.com/python/python_gui.asp
+
+W3Schools. (2024). Python modules. W3Schools. 
+https://www.w3schools.com/python/python_modules.asp
+
+W3Schools. (2024). Python threading. W3Schools. 
+https://www.w3schools.com/python/python_threading.asp
+
+W3Schools. (2024). Python tkinter. W3Schools. 
+https://www.w3schools.com/python/python_tkinter.asp
+
+W3Schools. (2024). Python tkinter button. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_button.asp
+
+W3Schools. (2024). Python tkinter canvas. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_canvas.asp
+
+W3Schools. (2024). Python tkinter frame. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_frame.asp
+
+W3Schools. (2024). Python tkinter grid. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_grid.asp
+
+W3Schools. (2024). Python tkinter layout. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_layout.asp
+
+W3Schools. (2024). Python tkinter mainloop. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_mainloop.asp
+
+W3Schools. (2024). Python tkinter messagebox. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_messagebox.asp
+
+W3Schools. (2024). Python tkinter notebook. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_notebook.asp
+
+W3Schools. (2024). Python tkinter pack. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_pack.asp
+
+W3Schools. (2024). Python tkinter treeview. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_treeview.asp
+
+W3Schools. (2024). Python tkinter variables. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_variables.asp
+
+W3Schools. (2024). Python tkinter widgets. W3Schools. 
+https://www.w3schools.com/python/python_tkinter_widgets.asp
+
+W3Schools. (2024). Python try except. W3Schools. 
+https://www.w3schools.com/python/python_try_except.asp
+
+W3Schools. (2024). Python variables. W3Schools. 
+https://www.w3schools.com/python/python_variables.asp
+
+W3Schools. (2024). Colors hexadecimal. W3Schools. 
+https://www.w3schools.com/colors/colors_hexadecimal.asp

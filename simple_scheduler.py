@@ -302,11 +302,12 @@ class SimpleMLFQScheduler:
                             sorted_processes.insert(0, vip)
 
                     self._move_to_CPU(next_proc, run_end)
-                    frames.append(self._snapshot(self.cpu.name))
 
             if self.cpu:
                 self.cpu.remaining_time -= 1
                 self.cpu.process_time += 1
+                # Take snapshot after incrementing process_time to show current PT value
+                frames.append(self._snapshot(self.cpu.name))
 
             # Check for process completion
             if self.cpu_proc_end is not None and self.current_time + 1 == self.cpu_proc_end:
@@ -334,6 +335,14 @@ class SimpleMLFQScheduler:
 
             # Move time forward    
             self.current_time += 1
+            
+            #NEWLY ADDED
+            # Create a frame at the end of each tick to show final state
+            # This ensures we have a frame for every tick with updated PT values
+            if self.cpu:
+                frames.append(self._snapshot(self.cpu.name))
+            else:
+                frames.append(self._snapshot(None))
 
         # Result details
         results = []
