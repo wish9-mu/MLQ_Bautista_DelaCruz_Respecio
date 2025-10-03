@@ -23,22 +23,31 @@ IMPORTS AND DEPENDENCIES
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 
-# Import threading for running simulations without freezing the GUI
-# (W3Schools, 2024, https://www.w3schools.com/python/python_threading.asp)
-import threading
-
-# Import os for file operations (W3Schools, 2024, https://www.w3schools.com/python/python_file_handling.asp)
-import os
-
 # Import our custom classes for process management and scheduling
 from process import DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_DEMOTE_THRESHOLD, DEFAULT_AGING_THRESHOLD, load_defaults
 from scheduler import SimpleMLFQScheduler
-from gui_tabs.config_tab import setup_configuration_tab
-from gui_tabs.simulation_tab import setup_simulation_tab, repaint_animation_frame
-from gui_tabs.results_tab import setup_results_tab, populate_results_tab
 from drawing.queue_canvas import draw_queue_canvas
 from drawing.schedule_canvas import draw_schedule_timeline
 from drawing.timeline_grid import draw_timeline_grid
+from gui_tabs.config_tab import (
+    setup_configuration_tab,
+    toggle_custom_processes, load_custom_processes, upload_process_file,
+    parse_process_file, clear_uploaded_file,
+    _next_expected_name, _ensure_custom_row_count,
+    _on_tree_double_click, _cancel_cell_edit, _commit_cell_edit,
+    on_num_processes_changed, update_settings_display
+)
+from gui_tabs.simulation_tab import (
+    setup_simulation_tab,
+    repaint_animation_frame,
+    run_simulation, _run_simulation_background
+)
+from gui_tabs.results_tab import (
+    setup_results_tab,
+    populate_results_tab,
+    _display_results, _show_error
+)
+
 
 """
 MAIN GUI CLASS
@@ -357,506 +366,30 @@ class MLFQGUI:
     def _populate_results_tab(self):
         return populate_results_tab(self)
     
-    def toggle_custom_processes(self):
-        # Show or hide the custom processes section based on checkbox.
-        # Uses tkinter widget methods to show/hide sections (GeeksforGeeks: Python Tkinter Widget Methods)
-        use_defaults = self.use_default_processes.get()
-        self.custom_frame.pack(fill='both', expand=True, padx=10, pady=5)
+    # --- Config functions ---
+    def toggle_custom_processes(self):        return toggle_custom_processes(self)
+    def load_custom_processes(self):          return load_custom_processes(self)
+    def upload_process_file(self):            return upload_process_file(self)
+    def parse_process_file(self, file_path):  return parse_process_file(self, file_path)
+    def clear_uploaded_file(self):            return clear_uploaded_file(self)
 
-        n = max(1, int(self.num_processes.get()))
+    def _next_expected_name(self):            return _next_expected_name(self)
+    def _ensure_custom_row_count(self, n):    return _ensure_custom_row_count(self, n)
+    def _on_tree_double_click(self, e):       return _on_tree_double_click(self, e)
+    def _cancel_cell_edit(self):              return _cancel_cell_edit(self)
+    def _commit_cell_edit(self, row, col):    return _commit_cell_edit(self, row, col)
+    def on_num_processes_changed(self):       return on_num_processes_changed(self)
+    def update_settings_display(self):        return update_settings_display(self)
 
-        # Enable/disable the number of processes spinbox
-        if use_defaults:
-            self.count_spinbox.config(state='disabled')
-            self.help_label.config(text="Using default processes - editing disabled")
-            self.load_custom_btn.config(state='disabled')
-            self.custom_status_label.config(text="")
+    # --- Simulation functions ---
+    def repaint_animation_frame(self):        return repaint_animation_frame(self)
+    def run_simulation(self):                 return run_simulation(self)
+    def _run_simulation_background(self):     return _run_simulation_background(self)
 
-            (q0, q1, q2), demote, aging, file_procs = load_defaults("default_processes.txt")
+    # --- Results functions ---
+    def _display_results(self, t, r, f):      return _display_results(self, t, r, f)
+    def _show_error(self, msg):               return _show_error(self, msg)
 
-            self.quantum_q0.set(q0)
-            self.quantum_q1.set(q1)
-            self.quantum_q2.set(q2)
-            self.demote_threshold.set(demote)
-            self.aging_threshold.set(aging)
-
-            src = file_procs
-            for name, arrival, burst, priority in src[:n]:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
-        else:
-            self.count_spinbox.config(state='normal')
-            self.help_label.config(text="💡 Double-click on Arrival, Burst, or Priority to edit values.")
-            self.load_custom_btn.config(state='normal')
-            self.custom_status_label.config(text="Ready to load custom processes", fg="#666666")
-
-        # If we're switching FROM defaults TO custom, seed custom_processes
-        # with whatever is currently visible (the default rows).
-        if not use_defaults:
-            # If we have a loaded file, use those processes
-            if self.loaded_file_processes:
-                self.custom_processes = list(self.loaded_file_processes)
-            else:
-                # Otherwise, use currently visible rows
-                visible_rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
-                if visible_rows:
-                    self.custom_processes = [(str(nm), int(a), int(b), int(p)) for (nm, a, b, p, pt_used) in visible_rows]
-                # If nothing visible yet (e.g., first time), fall back to defaults[:n]
-                if not self.custom_processes:
-                    self.custom_processes = list(DEFAULT_PROCESSES[:n])
-
-        # Clear table before repopulating
-        for item in self.process_tree.get_children():
-            self.process_tree.delete(item)
-
-        if use_defaults:
-            # Exactly N defaults
-            for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
-        else:
-            # Use the seeded custom rows, then ensure we have exactly N
-            for name, arrival, burst, priority in self.custom_processes:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
-            self._ensure_custom_row_count(n)
-
-        self.update_settings_display()
-    
-    def load_custom_processes(self):
-        """Load and validate the custom processes from the table."""
-        if self.use_default_processes.get():
-            messagebox.showinfo("Default Mode", "You are currently using default processes. Uncheck 'Use default processes' to load custom processes.")
-            return
-        
-        try:
-            # Read and validate all rows from the table
-            rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
-            validated_processes = []
-            
-            for i, (name, arrival, burst, priority, pt_used) in enumerate(rows):
-                # Validate each field
-                try:
-                    arrival_val = int(arrival)
-                    burst_val = int(burst)
-                    priority_val = int(priority)
-                    pt_used_val = int(pt_used)
-                    
-                    if arrival_val < 0:
-                        raise ValueError(f"Process {name}: Arrival time must be ≥ 0")
-                    if burst_val < 1:
-                        raise ValueError(f"Process {name}: Burst time must be ≥ 1")
-                    if priority_val not in (1, 2, 3):
-                        raise ValueError(f"Process {name}: Priority must be 1, 2, or 3")
-                    if pt_used_val < 0:
-                        raise ValueError(f"Process {name}: PT_Used must be ≥ 0")
-                    
-                    validated_processes.append((str(name), arrival_val, burst_val, priority_val))
-                    
-                except ValueError as e:
-                    messagebox.showerror("Validation Error", str(e))
-                    return
-            
-            # Update the custom processes list
-            self.custom_processes = validated_processes
-            
-            # Update status
-            self.custom_status_label.config(text=f"✓ Loaded {len(validated_processes)} custom processes", fg="#27ae60")
-            
-            # Update settings display
-            self.update_settings_display()
-            
-            messagebox.showinfo("Success", f"Successfully loaded {len(validated_processes)} custom processes!\nYou can now run the simulation.")
-            
-        except Exception as e:
-            messagebox.showerror("Load Error", f"Error loading custom processes: {str(e)}")
-            self.custom_status_label.config(text="✗ Load failed", fg="#e74c3c")
-    
-    def upload_process_file(self):
-        """Upload and parse a .txt file containing process definitions."""
-        # Open file dialog
-        file_path = filedialog.askopenfilename(
-            title="Select Process File",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
-        )
-        
-        if not file_path:
-            return
-        
-        try:
-            # Parse the file
-            processes = self.parse_process_file(file_path)
-            
-            if not processes:
-                messagebox.showerror("Invalid File", "No valid processes found in the file.")
-                return
-            
-            # Store the loaded file info
-            self.loaded_file_path = file_path
-            self.loaded_file_processes = processes
-            
-            # Update UI
-            filename = os.path.basename(file_path)
-            self.file_label.config(text=f"Loaded: {filename} ({len(processes)} processes)")
-            self.clear_file_btn.config(state='normal')
-            
-            # Update the process count to match loaded file
-            self.num_processes.set(len(processes))
-            
-            # Switch to custom mode and populate with loaded processes
-            self.use_default_processes.set(False)
-            self.toggle_custom_processes()
-            
-            messagebox.showinfo("File Loaded", f"Successfully loaded {len(processes)} processes from {filename}")
-            
-        except Exception as e:
-            messagebox.showerror("File Error", f"Error loading file: {str(e)}")
-    
-    def parse_process_file(self, file_path):
-        """Simplified file parsing"""
-        processes = []
-        settings = {}
-        
-        with open(file_path, 'r') as file:
-            for line_num, line in enumerate(file, 1):
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
-
-                parts = line.split()
-                
-                # Settings (Q0/Q1/Q2/DEMOTE/AGING value)
-                if len(parts) == 2 and parts[0].upper() in ("Q0", "Q1", "Q2", "DEMOTE", "AGING"):
-                    try:
-                        settings[parts[0].upper()] = int(parts[1])
-                    except ValueError:
-                        raise ValueError(f"Line {line_num}: {parts[0]} must be an integer")
-                    continue
-
-                # Process (name arrival burst priority)
-                if len(parts) == 4:
-                    try:
-                        name, arrival, burst, priority = parts[0], int(parts[1]), int(parts[2]), int(parts[3])
-                        if arrival < 0 or burst < 1 or priority not in (1, 2, 3):
-                            raise ValueError("Invalid process values")
-                        processes.append((name, arrival, burst, priority))
-                    except ValueError:
-                        raise ValueError(f"Line {line_num}: Invalid process format")
-                    continue
-
-                raise ValueError(f"Line {line_num}: Invalid format")
-
-        # Apply settings
-        for key, value in settings.items():
-            if key == "Q0": self.quantum_q0.set(value)
-            elif key == "Q1": self.quantum_q1.set(value)
-            elif key == "Q2": self.quantum_q2.set(value)
-            elif key == "DEMOTE": self.demote_threshold.set(value)
-            elif key == "AGING": self.aging_threshold.set(value)
-
-        if not processes:
-            raise ValueError("No processes found in file")
-        
-        return processes
-    
-    
-    def clear_uploaded_file(self):
-        """Clear the uploaded file and return to default processes."""
-        self.loaded_file_path = None
-        self.loaded_file_processes = []
-        
-        # Update UI
-        self.file_label.config(text="No file loaded")
-        self.clear_file_btn.config(state='disabled')
-        
-        # Return to default processes
-        self.use_default_processes.set(True)
-        self.toggle_custom_processes()
-        
-        messagebox.showinfo("File Cleared", "Uploaded file cleared. Using default processes.")
-    
-    
-    def _next_expected_name(self):
-        names = [self.process_tree.item(i, 'values')[0] for i in self.process_tree.get_children()]
-        nums = []
-        for nm in names:
-            if isinstance(nm, str) and nm.startswith('P') and nm[1:].isdigit():
-                nums.append(int(nm[1:]))
-        nxt = (max(nums) + 1) if nums else 1
-        return f"P{nxt}"
-
-    def _ensure_custom_row_count(self, target_n):
-        # Make table have exactly target_n rows; auto-add P# rows or trim from bottom.
-        current_iids = list(self.process_tree.get_children())
-        cur_n = len(current_iids)
-
-        # Add rows if fewer
-        while cur_n < target_n:
-            next_name = self._next_expected_name()     # e.g., 'P8'
-            try:
-                idx = int(next_name[1:]) - 1          # 0-based index into DEFAULT_PROCESSES
-            except ValueError:
-                idx = None
-
-            if idx is not None and 0 <= idx < len(DEFAULT_PROCESSES):
-                name, arrival, burst, priority = DEFAULT_PROCESSES[idx]
-                # Ensure the name matches the sequence we're enforcing
-                name = next_name
-            else:
-                # Fallback if we ran out of built-ins
-                name, arrival, burst, priority = next_name, 0, 1, 1
-
-            self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
-            if not self.use_default_processes.get():
-                self.custom_processes.append((name, arrival, burst, priority))
-            cur_n += 1
-        
-        # Trim rows if more (remove from bottom)
-        while cur_n > target_n:
-            iid = self.process_tree.get_children()[-1]
-            vals = self.process_tree.item(iid, 'values')
-            self.process_tree.delete(iid)
-            if not self.use_default_processes.get():
-                try:
-                    self.custom_processes.remove((vals[0], int(vals[1]), int(vals[2]), int(vals[3])))
-                except ValueError:
-                    pass
-            cur_n -= 1
-
-    def _on_tree_double_click(self, event):
-        # For process customizations
-        # Name column is locked to keep it incremental.
-        
-        # Block edits in defaults mode
-        if self.use_default_processes.get():
-            messagebox.showinfo("Editing Disabled", "Process editing is disabled when using default processes.\nUncheck 'Use default processes' to enable editing.")
-            return
-
-        region = self.process_tree.identify("region", event.x, event.y)
-        if region != "cell":
-            return
-
-        row_id = self.process_tree.identify_row(event.y)
-        col_id = self.process_tree.identify_column(event.x)  # '#1'..'#4'
-        if not row_id or not col_id:
-            return
-
-        # Column mapping: #1=Name (locked), #2=Arrival, #3=BT_Now, #4=PT_Now, #5=PT_Used (locked)
-        if col_id == "#1":
-            messagebox.showinfo("Name Locked", "Process names are automatically generated (P1, P2, P3...).\nDouble-click on Arrival, BT_Now, or PT_Now columns to edit those values.")
-            return
-        elif col_id == "#5":  # PT_Used column
-            messagebox.showinfo("PT_Used Locked", "PT_Used (Processing Time Used) is automatically calculated during simulation.\nThis value cannot be manually edited.")
-            return
-
-        bbox = self.process_tree.bbox(row_id, col_id)
-        if not bbox:
-            return
-        x, y, w, h = bbox
-
-        # Current value
-        cur_vals = list(self.process_tree.item(row_id, "values"))
-        cur_text = cur_vals[int(col_id[1:]) - 1]
-
-        # Create an Entry overlayed on the cell
-        self._cell_editor = tk.Entry(self.process_tree)
-        self._cell_editor.insert(0, str(cur_text))
-        self._cell_editor.select_range(0, 'end')
-        self._cell_editor.focus_set()
-        self._cell_editor.place(x=x, y=y, width=w, height=h)
-
-        # Commit/cancel
-        self._cell_editor.bind("<Return>",      lambda e: self._commit_cell_edit(row_id, col_id))
-        self._cell_editor.bind("<KP_Enter>",    lambda e: self._commit_cell_edit(row_id, col_id))
-        self._cell_editor.bind("<Escape>",      lambda e: self._cancel_cell_edit())
-        self._cell_editor.bind("<FocusOut>",    lambda e: self._commit_cell_edit(row_id, col_id))
-
-    def _cancel_cell_edit(self):
-        if hasattr(self, "_cell_editor") and self._cell_editor:
-            self._cell_editor.destroy()
-            self._cell_editor = None
-
-    def _commit_cell_edit(self, row_id, col_id):
-        # Validate input, write back to Treeview, and sync self.custom_processes.
-        if not hasattr(self, "_cell_editor") or not self._cell_editor:
-            return
-        new_text = self._cell_editor.get().strip()
-        self._cell_editor.destroy()
-        self._cell_editor = None
-
-        # Only numeric columns can be edited
-        idx = int(col_id[1:]) - 1  # 1-based to 0-based
-        try:
-            val = int(new_text)
-        except ValueError:
-            messagebox.showerror("Invalid input", "Please enter an integer value.")
-            return
-
-        # Validate per-column
-        if idx == 1:        # Arrival
-            if val < 0:
-                messagebox.showerror("Invalid Arrival", "Arrival must be ≥ 0.")
-                return
-        elif idx == 2:      # BT_Now
-            if val < 1:
-                messagebox.showerror("Invalid BT_Now", "BT_Now must be ≥ 1.")
-                return
-        elif idx == 3:      # PT_Now
-            if val < 1 or val > 3:
-                messagebox.showerror("Invalid PT_Now", "PT_Now must be between 1 and 3.")
-                return
-        elif idx == 4:      # PT_Used
-            if val < 0:
-                messagebox.showerror("Invalid PT_Used", "PT_Used must be ≥ 0.")
-                return
-
-        # Write back to Treeview
-        values = list(self.process_tree.item(row_id, "values"))
-        values[idx] = str(val)
-        self.process_tree.item(row_id, values=values)
-
-        # Sync custom_processes (custom mode only)
-        if not self.use_default_processes.get():
-            rows = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
-            self.custom_processes = [(str(n), int(a), int(b), int(p)) for (n, a, b, p, pt_used) in rows]
-
-    def on_num_processes_changed(self):
-        # Keep the table in sync with the requested count in both modes.
-        n = max(1, int(self.num_processes.get()))
-        if self.use_default_processes.get():
-            # repopulate exactly N defaults
-            for item in self.process_tree.get_children():
-                self.process_tree.delete(item)
-            for name, arrival, burst, priority in DEFAULT_PROCESSES[:n]:
-                self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
-        else:
-            # If custom list is empty (first-time custom), seed from defaults[:n]
-            if not self.custom_processes:
-                self.custom_processes = list(DEFAULT_PROCESSES[:n])
-                # also reflect in the table immediately
-                for item in self.process_tree.get_children():
-                    self.process_tree.delete(item)
-                for name, arrival, burst, priority in self.custom_processes:
-                    self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
-            # then enforce exact N in custom mode (adds beyond using remaining defaults if available)
-            self._ensure_custom_row_count(n)
-
-        self.update_settings_display()
-
-    
-    def update_settings_display(self):
-        # Update the settings display in the simulation tab.
-        # Uses tkinter Text widget methods to update display (W3Schools: Python Tkinter Text)
-        self.settings_text.config(state='normal')
-        self.settings_text.delete('1.0', 'end')
-        
-        # Determine process source
-        if self.loaded_file_path:
-            filename = os.path.basename(self.loaded_file_path)
-            process_source = f"Loaded from file: {filename}"
-        elif self.use_default_processes.get():
-            process_source = "Using default processes"
-        else:
-            process_source = "Using custom processes"
-        
-        settings_info = f"""
-        Current Settings:
-        • Number of Processes: {self.num_processes.get()}
-        • Process Source: {process_source}
-        • Time Quantum Q0 (Highest): {self.quantum_q0.get()}
-        • Time Quantum Q1 (Medium): {self.quantum_q1.get()}
-        • Time Quantum Q2 (Lowest): {self.quantum_q2.get()}
-        • Demotion Threshold: {self.demote_threshold.get()}
-        • Aging Threshold: {self.aging_threshold.get()}
-        • Preemption: {'Yes' if self.preempt.get() else 'No'}
-        """
-        
-        self.settings_text.insert('1.0', settings_info)
-        self.settings_text.config(state='disabled')
-    
-    def run_simulation(self):
-        # Run the MLFQ simulation in a separate thread.
-        # Uses threading to prevent GUI freezing (GeeksforGeeks: Python Threading)
-        self.play_btn.config(state='disabled')
-        self.status_label.config(text="Running simulation...")
-        
-        # Uses threading.Thread to run simulation in background (W3Schools: Python Threading)
-        t = threading.Thread(target=self._run_simulation_background, daemon=True)
-        t.start()
-    
-    def _run_simulation_background(self):
-        # Run the actual simulation in the background thread.
-        try:
-            # Get processes to use
-            if self.use_default_processes.get():
-                # Uses slicing to get the right number of default processes (GeeksforGeeks: Python List Slicing)
-                processes = DEFAULT_PROCESSES[:self.num_processes.get()]
-            else:
-                 # Read rows directly from the table to use the visible configuration
-                rows  = [self.process_tree.item(i, 'values') for i in self.process_tree.get_children()]
-                processes = [
-                    (str(name), int(arrival), int(burst), int(priority))
-                    for (name, arrival, burst, priority, _) in rows
-                ][:self.num_processes.get()]
-            
-            # Create scheduler with separate quantums for each queue
-            scheduler = SimpleMLFQScheduler(
-                quantums=[self.quantum_q0.get(), self.quantum_q1.get(), self.quantum_q2.get()],
-                demote_threshold=self.demote_threshold.get(),
-                aging_threshold=self.aging_threshold.get(),
-                preempt=self.preempt.get()
-            )
-            
-            # Run simulation
-            timeline, results, frames = scheduler.simulate_with_frames(processes)
-            
-            # Update GUI in main thread
-            # Uses tkinter.after to update GUI from background thread (GeeksforGeeks: Python Tkinter Threading)
-            self.root.after(0, self._display_results, timeline, results, frames)
-            
-        except Exception as e:
-            # Uses tkinter.after to show error in main thread
-            self.root.after(0, self._show_error, str(e))
-    
-    def _display_results(self, timeline, results, frames):
-        self.notebook.select(self.simulation_tab)
-
-        # store data for later
-        self.timeline = timeline or []
-        self.results  = results or []
-        self.frames   = frames or []
-
-        # UI status
-        self.status_label.config(text="Simulation completed. Playing animation…")
-
-        # reset animation state
-        self.frame_i = 0
-        self.anim_total = len(self.frames)
-        self._animating = False
-        self._anim_after_id = None
-        self.status_label.config(text="Simulation ready. Use ▶, Next, or Prev.")
-
-        # clear canvases before first paint
-        for c in getattr(self, 'queue_canvases', []):
-            c.delete('all')
-        self.schedule_canvas.delete('all')
-
-        # prime buttons
-        self.play_btn.config(state=('normal' if self.anim_total > 0 else 'disabled'))
-        self.pause_btn.config(state='disabled')
-        self.reset_btn.config(state=('normal' if self.anim_total > 0 else 'disabled'))
-        self.prev_tick_btn.config(state='disabled')
-        self.next_tick_btn.config(state=('normal' if self.anim_total > 1 else 'disabled'))
-
-        # paint tick 0 immediately
-        if self.anim_total > 0:
-            self._repaint_animation_frame()
-            self.play_animation()
-
-    
-    def _show_error(self, error_message):
-        self.play_btn.config(state='normal')
-        self.pause_btn.config(state='disabled')
-        self.reset_btn.config(state='disabled')
-        self.status_label.config(text="Simulation failed!")
-        messagebox.showerror("Simulation Error", f"An error occurred: {error_message}")
     
     """
     =============================================================================
