@@ -2,7 +2,7 @@
 # Simple MLFQ (Multi-Level Feedback Queue) Scheduler
 # This is the heart of our CPU scheduler simulation
 
-from simple_process import Process
+from process import Process
 
 class SimpleMLFQScheduler:
     

@@ -21,7 +21,7 @@ IMPORTS AND DEPENDENCIES
 
 # Import tkinter for GUI components (W3Schools, 2024, https://www.w3schools.com/python/python_tkinter.asp)
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog
+from tkinter import ttk, messagebox, filedialog
 
 # Import threading for running simulations without freezing the GUI
 # (W3Schools, 2024, https://www.w3schools.com/python/python_threading.asp)
@@ -31,8 +31,14 @@ import threading
 import os
 
 # Import our custom classes for process management and scheduling
-from simple_process import Process, DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_DEMOTE_THRESHOLD, DEFAULT_AGING_THRESHOLD, load_defaults
-from simple_scheduler import SimpleMLFQScheduler
+from process import DEFAULT_PROCESSES, DEFAULT_QUANTUM, DEFAULT_DEMOTE_THRESHOLD, DEFAULT_AGING_THRESHOLD, load_defaults
+from scheduler import SimpleMLFQScheduler
+from gui_tabs.config_tab import setup_configuration_tab
+from gui_tabs.simulation_tab import setup_simulation_tab, repaint_animation_frame
+from gui_tabs.results_tab import setup_results_tab, populate_results_tab
+from drawing.queue_canvas import draw_queue_canvas
+from drawing.schedule_canvas import draw_schedule_timeline
+from drawing.timeline_grid import draw_timeline_grid
 
 """
 MAIN GUI CLASS
@@ -328,331 +334,28 @@ class MLFQGUI:
     """
     
     def setup_configuration_tab(self):
-        """
-        Create the Configuration tab interface.
-        
-        This tab allows users to:
-        - Set scheduler parameters (quantum times, thresholds)
-        - Choose between default or custom processes
-        - Edit process details in a table format
-        - Load processes from external files
-        
-        References:
-        - W3Schools. (2024). Python tkinter treeview. https://www.w3schools.com/python/python_tkinter_treeview.asp
-        """
-        config_frame = ttk.Frame(self.notebook)
-        self.notebook.add(config_frame, text="Configuration")
-        
-        # Two-column layout
-        main_container = tk.Frame(config_frame)
-        main_container.pack(fill='both', expand=True, padx=10, pady=5)
-        
-        left_column = tk.Frame(main_container)
-        left_column.pack(side='left', fill='both', expand=True, padx=(0, 5))
-        
-        right_column = tk.Frame(main_container)
-        right_column.pack(side='right', fill='both', expand=True, padx=(5, 0))
-        
-        # Process count section
-        count_frame = self.create_label_frame(left_column, "Number of Processes")
-        count_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Label(count_frame, text="How many processes?").pack(side='left', padx=5)
-        self.count_spinbox = self.create_spinbox(count_frame, self.num_processes, width=10)
-        self.count_spinbox.pack(side='left', padx=5)
-        self.num_processes.trace_add('write', lambda *args: self.on_num_processes_changed())
-        
-        # Process options
-        default_frame = self.create_label_frame(left_column, "Process Options")
-        default_frame.pack(fill='x', padx=5, pady=5)
-        
-        tk.Checkbutton(default_frame, text="Use default processes", 
-                     variable=self.use_default_processes, command=self.toggle_custom_processes).pack(anchor='w', padx=5, pady=2)
-        
-        # File upload
-        file_frame = tk.Frame(default_frame)
-        file_frame.pack(fill='x', padx=5, pady=5)
-        tk.Label(file_frame, text="Or upload .txt file:", font=("Arial", 9)).pack(anchor='w')
-        
-        file_btn_frame = tk.Frame(file_frame)
-        file_btn_frame.pack(fill='x', pady=2)
-        
-        self.upload_btn = self.create_button(file_btn_frame, "📁 Upload", self.upload_process_file, bg="#3498db", fg="white")
-        self.upload_btn.pack(side='left', padx=(0, 5))
-        
-        self.file_label = tk.Label(file_btn_frame, text="No file loaded", font=("Arial", 8), fg="#666666")
-        self.file_label.pack(side='left')
-        
-        self.clear_file_btn = self.create_button(file_btn_frame, "✖ Clear", self.clear_uploaded_file, state='disabled')
-        self.clear_file_btn.pack(side='left', padx=(5, 0))
-        
-        # Custom processes section
-        self.custom_frame = self.create_label_frame(left_column, "Custom Processes")
-        self.custom_frame.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        self.help_label = tk.Label(self.custom_frame, text="💡 Double-click to edit values", 
-                                  font=("Arial", 9), fg="#666666")
-        self.help_label.pack(anchor='w', padx=5, pady=(5, 0))
-        
-        # Process tree
-        list_frame = tk.Frame(self.custom_frame)
-        list_frame.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        columns = ('Name', 'Arrival', 'Burst', 'Priority', 'Processed')
-        self.process_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=8)
-        
-        for col in columns:
-            self.process_tree.heading(col, text=col)
-            self.process_tree.column(col, width=100)
-
-        self.process_tree.bind("<Double-1>", self._on_tree_double_click)
-        
-        scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self.process_tree.yview)
-        self.process_tree.configure(yscrollcommand=scrollbar.set)
-        
-        self.process_tree.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
-        
-        # Load custom processes button
-        button_frame = tk.Frame(self.custom_frame)
-        button_frame.pack(fill='x', padx=5, pady=5)
-        
-        self.load_custom_btn = self.create_button(button_frame, "Load Custom Processes", 
-                                                self.load_custom_processes, 
-                                                bg="#27ae60", fg="white", width=20)
-        self.load_custom_btn.pack(side='left', padx=5)
-        
-        self.custom_status_label = tk.Label(button_frame, text="", font=("Arial", 9), fg="#666666")
-        self.custom_status_label.pack(side='left', padx=10)
-        
-        # Settings sections
-        self.setup_settings_section(right_column)
-
-        
+        return setup_configuration_tab(self)
     
     def setup_simulation_tab(self):
-        """
-        Create the Simulation tab interface.
-        
-        This tab provides:
-        - Run simulation button and controls
-        - Real-time visualization of the scheduling process
-        - Interactive timeline showing process execution
-        - Animation controls for step-by-step viewing
-        
-        References:
-        - W3Schools. (2024). Python tkinter canvas. https://www.w3schools.com/python/python_tkinter_canvas.asp
-        """
-        self.simulation_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.simulation_tab, text="Simulation")
-        
-        # Status header
-        status_header = tk.Frame(self.simulation_tab, bg='#2c3e50', height=60)
-        status_header.pack(fill='x', padx=10, pady=(10, 5))
-        status_header.pack_propagate(False)
-        
-        # Timer info
-        timer_frame = tk.Frame(status_header, bg='#2c3e50')
-        timer_frame.pack(side='left', fill='y', padx=10, pady=5)
-        
-        self.timer_label = tk.Label(timer_frame, text="Timer: 0", font=("Arial", 14, "bold"), 
-                                   bg='#2c3e50', fg='white')
-        self.timer_label.pack(anchor='w')
-        
-        self.current_process_label = tk.Label(timer_frame, text="Running: None", font=("Arial", 12), 
-                                            bg='#2c3e50', fg='#ecf0f1')
-        self.current_process_label.pack(anchor='w')
-        
-        self.execution_time_label = tk.Label(timer_frame, text="Execution Time: 0", font=("Arial", 10), 
-                                           bg='#2c3e50', fg='#bdc3c7')
-        self.execution_time_label.pack(anchor='w')
+        return setup_simulation_tab(self)
 
-        # Controls
-        controls_frame = tk.Frame(status_header, bg='#2c3e50')
-        controls_frame.pack(side='right', fill='y', padx=10, pady=5)
-        
-        self.play_btn = self.create_button(controls_frame, "▶ Play", self.on_play_clicked, 
-                                         bg="#27ae60", fg="white", width=8)
-        self.pause_btn = self.create_button(controls_frame, "⏸ Pause", self.pause_animation, 
-                                          state='disabled', width=8)
-        self.reset_btn = self.create_button(controls_frame, "⟲ Reset", self.reset_animation, 
-                                           state='disabled', width=8)
-        
-        self.play_btn.pack(side='left', padx=2)
-        self.pause_btn.pack(side='left', padx=2)
-        self.reset_btn.pack(side='left', padx=2)
-
-        # Speed control
-        speed_frame = tk.Frame(controls_frame, bg='#2c3e50')
-        speed_frame.pack(side='left', padx=(10, 0))
-        
-        tk.Label(speed_frame, text="Speed:", font=("Arial", 9), bg='#2c3e50', fg='white').pack(side='left')
-        self.speed_var = tk.IntVar(value=5)
-        self.speed_slider = tk.Scale(speed_frame, from_=1, to=10, orient='horizontal', 
-                                   variable=self.speed_var, command=self.update_speed, 
-                                   length=100, font=("Arial", 8), bg='#2c3e50', fg='white')
-        self.speed_slider.pack(side='left', padx=2)
-
-        # Main content area
-        main_content = tk.Frame(self.simulation_tab)
-        main_content.pack(fill='both', expand=True, padx=10, pady=5)
-
-        # Left side - Queues
-        left_panel = tk.Frame(main_content)
-        left_panel.pack(side='left', fill='both', expand=True, padx=(0, 5))
-
-        # Create queue canvases
-        queue_titles = ["Q0", "Q1", "Q2"]
-        self.queue_canvases = []
-        for i, title in enumerate(queue_titles):
-            q_frame = tk.LabelFrame(left_panel, text=title, font=("Arial", 12, "bold"))
-            q_frame.pack(fill='both', expand=True, pady=(0, 5))
-            
-            canvas = self.create_canvas(q_frame)
-            canvas.pack(fill='both', expand=True, padx=5, pady=5)
-            self.queue_canvases.append(canvas)
-
-        # Right side - Schedule
-        right_panel = tk.Frame(main_content)
-        right_panel.pack(side='right', fill='both', expand=True, padx=(5, 0))
-
-        schedule_frame = tk.LabelFrame(right_panel, text="Running Processes / Schedule", 
-                                      font=("Arial", 12, "bold"))
-        schedule_frame.pack(fill='both', expand=True, pady=(0, 5))
-
-        schedule_container = tk.Frame(schedule_frame)
-        schedule_container.pack(fill='both', expand=True, padx=5, pady=5)
-
-        self.schedule_canvas = self.create_canvas(schedule_container, height=250)
-        
-        schedule_scrollbar = ttk.Scrollbar(schedule_container, orient='horizontal', 
-                                         command=self.schedule_canvas.xview)
-        self.schedule_canvas.configure(xscrollcommand=schedule_scrollbar.set)
-        
-        self.schedule_canvas.pack(side='top', fill='both', expand=True)
-        schedule_scrollbar.pack(side='bottom', fill='x')
-        
-        # Add mouse wheel scrolling support for schedule canvas
-        self._bind_mousewheel_to_canvas(self.schedule_canvas)
-
-        # Tick controls
-        tick_controls = tk.Frame(right_panel)
-        tick_controls.pack(fill='x', pady=5)
-        
-        self.prev_tick_btn = self.create_button(tick_controls, "⏮ Prev", self.previous_tick, 
-                                              state='disabled', width=6)
-        self.next_tick_btn = self.create_button(tick_controls, "Next ⏭", self.next_tick, 
-                                              state='disabled', width=6)
-        
-        self.prev_tick_btn.pack(side='left', padx=2)
-        self.next_tick_btn.pack(side='left', padx=2)
-        
-        self.tick_label = tk.Label(tick_controls, text="Tick: 0/0", font=("Arial", 10, "bold"), 
-                                 fg="#2c3e50")
-        self.tick_label.pack(side='right', padx=5)
-
-        # Status label
-        self.status_label = tk.Label(right_panel, text="Ready to run simulation", 
-                                   font=("Arial", 10), fg="#666666")
-        self.status_label.pack(fill='x', pady=5)
-
-        # Current settings
-        settings = tk.LabelFrame(self.simulation_tab, text="Current Settings", font=("Arial", 10, "bold"))
-        settings.pack(fill='x', padx=10, pady=5)
-
-        self.settings_text = tk.Text(settings, height=4, wrap='word', bg='#f8f9fa')
-        self.settings_text.pack(fill='x', padx=5, pady=5)
-
-        self.update_settings_display()
-        self.toggle_custom_processes()
-
-    
     def setup_results_tab(self):
-        """
-        Create the Results tab interface.
-        
-        This tab displays:
-        - Detailed timeline grid showing process execution
-        - Process results summary table
-        - Performance statistics and metrics
-        - Analysis of scheduling efficiency
-        
-        References:
-        - W3Schools. (2024). Python tkinter grid. https://www.w3schools.com/python/python_tkinter_grid.asp
-        """
-        self.results_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.results_tab, text="Simulation Results")
-        
-        main_container = tk.Frame(self.results_tab)
-        main_container.pack(fill='both', expand=True, padx=10, pady=5)
-        
-        # Timeline grid
-        timeline_grid_frame = self.create_label_frame(main_container, "Animation - Simulation Timeline")
-        timeline_grid_frame.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        timeline_container = tk.Frame(timeline_grid_frame)
-        timeline_container.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        self.timeline_grid_canvas = self.create_canvas(timeline_container, height=250)
-        
-        timeline_v_scrollbar = ttk.Scrollbar(timeline_container, orient='vertical', command=self.timeline_grid_canvas.yview)
-        timeline_h_scrollbar = ttk.Scrollbar(timeline_container, orient='horizontal', command=self.timeline_grid_canvas.xview)
-        self.timeline_grid_canvas.configure(yscrollcommand=timeline_v_scrollbar.set, xscrollcommand=timeline_h_scrollbar.set)
-        
-        # Vvbox for scroll bars
-        self.timeline_grid_canvas.grid(row=0, column=0, sticky='nsew')
-        timeline_v_scrollbar.grid(row=0, column=1, sticky='ns')
-        timeline_h_scrollbar.grid(row=1, column=0, columnspan=2, sticky='ew')
-        
-        # Configure grid weights so canvas expands
-        timeline_container.grid_rowconfigure(0, weight=1)
-        timeline_container.grid_columnconfigure(0, weight=1)
-        
-        # Add mouse wheel scrolling support for timeline grid canvas
-        self._bind_mousewheel_to_canvas(self.timeline_grid_canvas)
-        
-        # Timeline text
-        timeline_text_frame = self.create_label_frame(main_container, "Detailed Timeline")
-        timeline_text_frame.pack(fill='x', padx=5, pady=5)
-        
-        self.timeline_text = scrolledtext.ScrolledText(timeline_text_frame, height=8, wrap='word', font=("Courier", 9))
-        self.timeline_text.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        # Results table
-        results_table_frame = self.create_label_frame(main_container, "Process Results Summary")
-        results_table_frame.pack(fill='x', padx=5, pady=5)
-        
-        # Create container for results table with scrollbars
-        results_container = tk.Frame(results_table_frame)
-        results_container.pack(fill='both', expand=True, padx=5, pady=5)
-        
-        columns = ('Process', 'Arrival', 'BT_Now', 'PT_Now', 'PT_Used', 'First Start', 'Completion', 'Turnaround', 'WT_Now', 'Response')
-        self.results_tree = ttk.Treeview(results_container, columns=columns, show='headings', height=6)
-        
-        column_widths = {'Process': 60, 'Arrival': 60, 'BT_Now': 60, 'PT_Now': 60, 'PT_Used': 60, 'First Start': 80, 'Completion': 80, 'Turnaround': 80, 'WT_Now': 70, 'Response': 70}
-        for col in columns:
-            self.results_tree.heading(col, text=col)
-            self.results_tree.column(col, width=column_widths.get(col, 60))
-        
-        # Vertical scrollbar
-        results_v_scrollbar = ttk.Scrollbar(results_container, orient='vertical', command=self.results_tree.yview)
-        # Horizontal scrollbar
-        results_h_scrollbar = ttk.Scrollbar(results_container, orient='horizontal', command=self.results_tree.xview)
-        
-        # Configure both scrollbars
-        self.results_tree.configure(yscrollcommand=results_v_scrollbar.set, xscrollcommand=results_h_scrollbar.set)
-        
-        # Pack the table and scrollbars
-        self.results_tree.pack(side='left', fill='both', expand=True)
-        results_v_scrollbar.pack(side='right', fill='y')
-        results_h_scrollbar.pack(side='bottom', fill='x')
-        
-        # Summary
-        summary_frame = self.create_label_frame(self.results_tab, "Summary Statistics")
-        summary_frame.pack(fill='x', padx=10, pady=5)
-        
-        self.summary_text = tk.Text(summary_frame, height=4, wrap='word', bg='#f8f9fa', font=("Arial", 10))
-        self.summary_text.pack(fill='x', padx=5, pady=5)
+        return setup_results_tab(self)
+    
+    def _repaint_animation_frame(self):
+        return repaint_animation_frame(self)
+
+    def _draw_queue_canvas(self, canvas, processes):
+        return draw_queue_canvas(self, canvas, processes)
+
+    def _draw_schedule_timeline(self, frame):
+        return draw_schedule_timeline(self, frame)
+
+    def _draw_timeline_grid(self):
+        return draw_timeline_grid(self)
+
+    def _populate_results_tab(self):
+        return populate_results_tab(self)
     
     def toggle_custom_processes(self):
         # Show or hide the custom processes section based on checkbox.
@@ -682,7 +385,7 @@ class MLFQGUI:
                 self.process_tree.insert('', 'end', values=(name, arrival, burst, priority, 0))  # PT_Used starts at 0
         else:
             self.count_spinbox.config(state='normal')
-            self.help_label.config(text="💡 Double-click on Arrival, BT_Now, or PT_Now to edit values (PT_Used is auto-calculated)")
+            self.help_label.config(text="💡 Double-click on Arrival, Burst, or Priority to edit values.")
             self.load_custom_btn.config(state='normal')
             self.custom_status_label.config(text="Ready to load custom processes", fg="#666666")
 
@@ -1145,6 +848,7 @@ class MLFQGUI:
         # paint tick 0 immediately
         if self.anim_total > 0:
             self._repaint_animation_frame()
+            self.play_animation()
 
     
     def _show_error(self, error_message):
@@ -1175,110 +879,6 @@ class MLFQGUI:
         """
         self.root.mainloop()
 
-    def _repaint_animation_frame(self):
-        if not self.frames:
-            return
-        fr = self.frames[self.frame_i]
-
-        # Update status header
-        self.timer_label.config(text=f"Timer: {fr['t']}")
-        
-        if fr['running']:
-            self.current_process_label.config(text=f"Running: {fr['running']['name']}")
-            self.execution_time_label.config(text=f"Execution Time: {fr['running']['execution_time']}")
-        else:
-            self.current_process_label.config(text="Running: None")
-            self.execution_time_label.config(text="Execution Time: 0")
-
-        # Update queue displays
-        for i, canvas in enumerate(self.queue_canvases):
-            self._draw_queue_canvas(canvas, fr['queues'][i])
-
-        # Update schedule timeline
-        self._draw_schedule_timeline(fr)
-
-        self.tick_label.config(text=f"Tick: {self.frame_i+1}/{self.anim_total}")
-
-    def _draw_queue_canvas(self, canvas, processes):
-        """Enhanced queue drawing with larger, more informative process boxes"""
-        canvas.delete('all')
-        
-        if not processes:
-            w, h = canvas.winfo_width() or 200, canvas.winfo_height() or 120
-            canvas.create_text(w//2, h//2, text="Empty", font=("Arial", 12, "bold"), fill="#999")
-            return
-        
-        w = canvas.winfo_width() or 260
-        box_w, box_h, pad = min(280, w - 20), 48, 6
-
-        for i, p in enumerate(processes[:3]):  # show top 3 to keep it clean
-            y = 8 + i * (box_h + pad)
-            color = self._color_for(p['name'])
-            canvas.create_rectangle(10, y, 10+box_w, y+box_h, fill=color, outline='black', width=2)
-            canvas.create_text(16, y+12, text=p['name'], font=("Arial", 11, "bold"), anchor='w', fill="white")
-
-            row1 = f"BT:{p['burst']}  PT:{p['processing_time']}  REM:{p['remaining']}"
-            row2 = f"WT:{p['waiting']}  AT:{p['arrival']}"
-            canvas.create_text(16, y+28, text=row1, font=("Arial", 9), anchor='w', fill="white")
-            canvas.create_text(16, y+40, text=row2, font=("Arial", 9), anchor='w', fill="white")
-
-    def _draw_schedule_timeline(self, frame):
-        """Draw the horizontal timeline with current running process on top and past slices below."""
-        c = self.schedule_canvas
-        c.delete('all')
-
-        W = c.winfo_width() or 520
-        H = c.winfo_height() or 220
-        bw, bh, gap = 100, 64, 8
-        
-        # Add labels for the two rows
-        c.create_text(5, 25, text="Current:", font=("Arial", 10, "bold"), anchor='w', fill="black")
-        c.create_text(5, 95, text="Queued:", font=("Arial", 10, "bold"), anchor='w', fill="black")
-
-        # Row 1: Current running process (TOP ROW)
-        current_x = 60  # Start after the label
-        current_y = 10  # Top position
-        
-        if frame['running']:
-            rp = frame['running']
-            col = self._color_for(rp['name'])
-            c.create_rectangle(current_x, current_y, current_x+bw, current_y+bh, fill=col, outline='red', width=3)
-            c.create_text(current_x+bw//2, current_y+12, text=rp['name'], font=("Arial", 12, "bold"), fill="white")
-            c.create_text(current_x+bw//2, current_y+30, text=f"Q{rp['queue_level']}  REM:{rp['remaining']}", font=("Arial", 9), fill="white")
-            # Display BT, PT on first line and WT, AT on second line for CPU queue
-            # Calculate burst time from execution_time + remaining
-            burst_time = rp.get('execution_time', 0) + rp.get('remaining', 0)
-            line1_text = f"BT:{burst_time} PT:{rp.get('processing_time', 'N/A')}"
-            line2_text = f"WT:{rp.get('waiting', 'N/A')} AT:{rp.get('arrival', 'N/A')}"
-            c.create_text(current_x+bw//2, current_y+42, text=line1_text, font=("Arial", 8), fill="white")
-            c.create_text(current_x+bw//2, current_y+54, text=line2_text, font=("Arial", 8), fill="white")
-
-        # Row 2: Incoming processes in queues (BOTTOM ROW)
-        queue_x = 60  # Start after the label
-        queue_y = 80  # Bottom position
-        
-        # Show processes from all queues (Q0, Q1, Q2) in priority order
-        for queue_level in range(3):  # Q0 (highest) to Q2 (lowest)
-            queue_processes = frame['queues'][queue_level]
-            for process in queue_processes:
-                # Skip the currently running process to avoid duplication
-                if frame['running'] and process['name'] == frame['running']['name']:
-                    continue
-                    
-                col = self._color_for(process['name'])
-                # Use different border colors for different queue levels
-                border_colors = ['#FFD700', '#C0C0C0', '#CD7F32']  # Gold, Silver, Bronze
-                border_color = border_colors[queue_level]
-                
-                c.create_rectangle(queue_x, queue_y, queue_x+bw, queue_y+bh, fill=col, outline=border_color, width=2)
-                c.create_text(queue_x+bw//2, queue_y+12, text=process['name'], font=("Arial", 11, "bold"), fill="white")
-                c.create_text(queue_x+bw//2, queue_y+30, text=f"Q{queue_level}  REM:{process['remaining']}", font=("Arial", 9), fill="white")
-                c.create_text(queue_x+bw//2, queue_y+48, text=f"WT:{process['waiting']}", font=("Arial", 9), fill="white")
-                queue_x += bw + gap
-
-        # Set scroll region to accommodate both rows
-        max_x = max(current_x + bw + gap, queue_x + gap)
-        c.configure(scrollregion=(0, 0, max(W, max_x), H))
     
     def _color_for(self, pid):
         """Simplified color mapping"""
@@ -1297,112 +897,6 @@ class MLFQGUI:
                 self.color_map[pid] = "#808080"  # Gray fallback
         
         return self.color_map[pid]
-
-    def _draw_timeline_grid(self):
-        """Draw the grid-based timeline visualization showing Q0, Q1, Q2, and CPU rows."""
-        if not hasattr(self, 'timeline_grid_canvas') or not self.timeline:
-            return
-            
-        canvas = self.timeline_grid_canvas
-        canvas.delete('all')
-        
-        # Calculate layout
-        canvas_width = canvas.winfo_width() or 800
-        canvas_height = canvas.winfo_height() or 200
-        
-        # Grid dimensions
-        cell_width = 30
-        cell_height = 35
-        header_height = 25
-        
-        # Find the maximum time from timeline
-        max_time = max(end for _, end, _, _ in self.timeline) if self.timeline else 0
-        
-        # Calculate total grid dimensions
-        total_width = max(canvas_width, (max_time + 1) * cell_width + 100)
-        total_height = header_height + 4 * cell_height + 20  # 4 rows: Q0, Q1, Q2, CPU
-        
-        # Set scroll region
-        canvas.configure(scrollregion=(0, 0, total_width, total_height))
-        
-        # Draw headers
-        headers = ['Q0 (Highest)', 'Q1', 'Q2', 'CPU (Running)']
-        for i, header in enumerate(headers):
-            y_pos = header_height + i * cell_height
-            canvas.create_text(10, y_pos + cell_height//2, text=header, 
-                             font=("Arial", 10, "bold"), anchor='w')
-        
-        # Draw time axis
-        for t in range(max_time + 1):
-            x_pos = 100 + t * cell_width
-            canvas.create_text(x_pos + cell_width//2, header_height//2, text=str(t), 
-                             font=("Arial", 9), anchor='center')
-        
-        # Create a grid to track what's in each cell
-        grid_data = {}
-        for queue_level in range(3):  # Q0, Q1, Q2
-            grid_data[queue_level] = {}
-            for t in range(max_time + 1):
-                grid_data[queue_level][t] = None
-        
-        # CPU row
-        grid_data['cpu'] = {}
-        for t in range(max_time + 1):
-            grid_data['cpu'][t] = None
-        
-        # Fill the grid with timeline data
-        for start, end, process_name, queue_level in self.timeline:
-            for t in range(start, end):
-                if t <= max_time:
-                    if queue_level < 3:  # Process in queue
-                        grid_data[queue_level][t] = process_name
-                    # Also mark CPU execution
-                    grid_data['cpu'][t] = process_name
-        
-        # Draw the grid cells
-        for queue_level in range(3):  # Q0, Q1, Q2
-            for t in range(max_time + 1):
-                x_pos = 100 + t * cell_width
-                y_pos = header_height + queue_level * cell_height
-                
-                process_name = grid_data[queue_level][t]
-                if process_name:
-                    # Process is in this queue at this time
-                    color = self._color_for(process_name)
-                    canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
-                                         fill=color, outline='black', width=1)
-                    canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
-                                     text=process_name, font=("Arial", 9, "bold"), 
-                                     fill="white", anchor='center')
-                else:
-                    # Empty cell
-                    canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
-                                         fill="#f0f0f0", outline='black', width=1)
-                    canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
-                                     text="Idle", font=("Arial", 8), 
-                                     fill="#999999", anchor='center')
-        
-        # Draw CPU row
-        for t in range(max_time + 1):
-            x_pos = 100 + t * cell_width
-            y_pos = header_height + 3 * cell_height  # CPU is the 4th row
-            
-            process_name = grid_data['cpu'][t]
-            if process_name:
-                # Process is running on CPU
-                color = self._color_for(process_name)
-                canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
-                                     fill=color, outline='red', width=2)  # Red border for CPU
-                canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
-                                 text=process_name, font=("Arial", 9, "bold"), 
-                                 fill="white", anchor='center')
-            else:
-                # CPU is idle
-                canvas.create_rectangle(x_pos, y_pos, x_pos + cell_width, y_pos + cell_height,
-                                     fill="#f0f0f0", outline='red', width=2)
-                canvas.create_text(x_pos + cell_width//2, y_pos + cell_height//2, 
-                                 text="Idle", font=("Arial", 8), 
-                                 fill="#999999", anchor='center')
 
     def play_animation(self):
         # Start automated animation playback.
@@ -1430,6 +924,7 @@ class MLFQGUI:
 
     def reset_animation(self):
         # Reset animation to the beginning.
+        self._clear_previous_run_outputs()
         self._animating = False
         if self._anim_after_id is not None:
             self.root.after_cancel(self._anim_after_id)
@@ -1553,114 +1048,6 @@ class MLFQGUI:
         # The _repaint_animation_frame method handles all the drawing
         pass
 
-
-    def _populate_results_tab(self):
-        # Fill the Results tab using self.timeline and self.results.
-        
-        # Draw the timeline grid visualization
-        self._draw_timeline_grid()
-        
-        # ---- Enhanced Timeline text ----
-        self.timeline_text.delete('1.0', 'end')
-        
-        # Header section
-        timeline_text = "=" * 80 + "\n"
-        timeline_text += "MLFQ CPU SCHEDULER - EXECUTION TIMELINE\n"
-        timeline_text += "=" * 80 + "\n\n"
-        
-        # Scheduling Rules Section
-        timeline_text += "SCHEDULING RULES:\n"
-        timeline_text += "-" * 40 + "\n"
-        timeline_text += f"• Time Quantum Q0 (Highest): {self.quantum_q0.get()} time units\n"
-        timeline_text += f"• Time Quantum Q1 (Medium): {self.quantum_q1.get()} time units\n"
-        timeline_text += f"• Time Quantum Q2 (Lowest): {self.quantum_q2.get()} time units\n"
-        timeline_text += f"• Demotion Threshold: {self.demote_threshold.get()} time units\n"
-        timeline_text += f"• Aging Threshold: {self.aging_threshold.get()} time units\n"
-        timeline_text += f"• Preemption: {'Enabled' if self.preempt.get() else 'Disabled'}\n\n"
-        
-        # Process Details Section
-        timeline_text += "PROCESS DETAILS:\n"
-        timeline_text += "-" * 40 + "\n"
-        timeline_text += f"{'Process':<10} {'PT_Now':<8} {'Arrival':<7} {'BT_Now':<6} {'PT_Used':<7} {'Completion':<10} {'Turnaround':<10} {'WT_Now':<8}\n"
-        timeline_text += "-" * 80 + "\n"
-        
-        for r in self.results:
-            pt_used = r['burst'] - (r['burst'] - r.get('remaining', 0)) if 'remaining' in r else r['burst']
-            timeline_text += f"{r['name']:<10} {r['priority']:<8} {r['arrival']:<7} {r['burst']:<6} {pt_used:<7} "
-            timeline_text += f"{r['completion'] if r['completion'] is not None else 'N/A':<10} "
-            timeline_text += f"{r['turnaround'] if r['turnaround'] is not None else 'N/A':<10} "
-            timeline_text += f"{r['waiting']:<8}\n"
-        
-        timeline_text += "\n"
-        
-        # Execution Timeline Section
-        timeline_text += "EXECUTION TIMELINE:\n"
-        timeline_text += "-" * 40 + "\n"
-        timeline_text += "Time | Process | Queue | Action\n"
-        timeline_text += "-" * 40 + "\n"
-        
-        if self.timeline:
-            for start, end, process, queue in self.timeline:
-                action = f"Executing in Q{queue}" if queue < 3 else "Running on CPU"
-                timeline_text += f"{start:4d} | {process:<7} | Q{queue:<4} | {action}\n"
-        else:
-            timeline_text += "No processes were executed.\n"
-        
-        timeline_text += "\n"
-        
-        # Time Axis Section
-        timeline_text += "TIME AXIS:\n"
-        timeline_text += "-" * 40 + "\n"
-        if self.timeline:
-            max_time = max(end for _, end, _, _ in self.timeline)
-            time_axis = " ".join([f"{i:2d}" for i in range(max_time + 1)])
-            timeline_text += f"Time: {time_axis}\n"
-        else:
-            timeline_text += "Time: No execution recorded\n"
-        
-        timeline_text += "\n" + "=" * 80 + "\n"
-        
-        self.timeline_text.insert('1.0', timeline_text)
-
-        # ---- Results table ----
-        for item in self.results_tree.get_children():
-            self.results_tree.delete(item)
-
-        for r in self.results:
-            pt_used = r['burst'] - (r['burst'] - r.get('remaining', 0)) if 'remaining' in r else r['burst']
-            self.results_tree.insert('', 'end', values=(
-                r['name'], r['arrival'], r['burst'], r['priority'], pt_used,
-                r['first_start'] if r['first_start'] is not None else "N/A",
-                r['completion']  if r['completion']  is not None else "N/A",
-                r['turnaround']  if r['turnaround']  is not None else "N/A",
-                r['waiting'],
-                r['response']    if r['response']    is not None else "N/A"
-            ))
-
-        # ---- Summary ----
-        self.summary_text.delete('1.0', 'end')
-        completed = [r for r in self.results if r['completion'] is not None]
-        if completed:
-            avg_wait = sum(r['waiting'] for r in completed) / len(completed)
-            avg_ta   = sum(r['turnaround'] for r in completed) / len(completed)
-            avg_resp = sum(r['response'] for r in completed if r['response'] is not None) / len(completed)
-            total_bt = sum(r['burst'] for r in completed)
-            makespan = max(r['completion'] for r in completed) - min(r['arrival'] for r in completed)
-            cpu_util = (total_bt / makespan) * 100 if makespan > 0 else 100.0
-            summary_text = (
-                f"Summary Statistics:\n"
-                f"• Average WT_Now: {avg_wait:.2f}\n"
-                f"• Average Turnaround Time: {avg_ta:.2f}\n"
-                f"• Average Response Time: {avg_resp:.2f}\n"
-                f"• CPU Utilization: {cpu_util:.2f}%\n"
-                f"• Total Processes: {len(completed)}\n"
-                f"• Total Simulation Time: {makespan}\n"
-            )
-        else:
-            summary_text = "No processes completed."
-        self.summary_text.insert('1.0', summary_text)
-
-
     def _on_animation_finished(self):
         # Called once the last frame is drawn.
         self.status_label.config(text="Animation finished.")
@@ -1668,6 +1055,64 @@ class MLFQGUI:
         self._populate_results_tab()
         self.notebook.select(self.results_tab)
         self.play_btn.config(state='normal')
+
+    def _clear_previous_run_outputs(self):
+        # stop any in-flight animation
+        self._animating = False
+        if getattr(self, "_anim_after_id", None):
+            self.root.after_cancel(self._anim_after_id)
+            self._anim_after_id = None
+
+        # forget old data
+        self.frames = []
+        self.timeline = []
+        self.results = []
+        self.frame_i = 0
+        self.anim_total = 0
+        self.color_map.clear()  # optional: new colors each run
+
+        # clear canvases
+        for c in getattr(self, "queue_canvases", []):
+            c.delete("all")
+        if hasattr(self, "schedule_canvas"):
+            self.schedule_canvas.delete("all")
+        if hasattr(self, "timeline_grid_canvas"):
+            self.timeline_grid_canvas.delete("all")
+
+        # clear text widgets/tables
+        if hasattr(self, "timeline_text"):
+            self.timeline_text.delete("1.0", "end")
+        if hasattr(self, "summary_text"):
+            self.summary_text.delete("1.0", "end")
+        if hasattr(self, "results_tree"):
+            for iid in self.results_tree.get_children():
+                self.results_tree.delete(iid)
+
+        # reset status labels
+        if hasattr(self, "timer_label"):
+            self.timer_label.config(text="Timer: 0")
+        if hasattr(self, "current_process_label"):
+            self.current_process_label.config(text="Running: None")
+        if hasattr(self, "execution_time_label"):
+            self.execution_time_label.config(text="Execution Time: 0")
+        if hasattr(self, "tick_label"):
+            self.tick_label.config(text="Tick: 0/0")
+
+        # reset buttons
+        if hasattr(self, "play_btn"):
+            self.play_btn.config(state="normal")
+        if hasattr(self, "pause_btn"):
+            self.pause_btn.config(state="disabled")
+        if hasattr(self, "reset_btn"):
+            self.reset_btn.config(state="disabled")
+        if hasattr(self, "prev_tick_btn"):
+            self.prev_tick_btn.config(state="disabled")
+        if hasattr(self, "next_tick_btn"):
+            self.next_tick_btn.config(state="disabled")
+
+        if hasattr(self, "status_label"):
+            self.status_label.config(text="Ready to run simulation")
+
 
 
 
