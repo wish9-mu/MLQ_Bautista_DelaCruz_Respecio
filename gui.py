@@ -269,7 +269,7 @@ class MLFQGUI:
         tk.Radiobutton(preempt_frame, text="Yes (Recommended)", variable=self.preempt, value=True).pack(anchor='w', padx=5, pady=2)
 
         # For No Preemption
-        # tk.Radiobutton(preempt_frame, text="No", variable=self.preempt, value=False).pack(anchor='w', padx=5, pady=2)
+        tk.Radiobutton(preempt_frame, text="No", variable=self.preempt, value=False).pack(anchor='w', padx=5, pady=2)
     
     """
     =============================================================================
@@ -398,7 +398,7 @@ class MLFQGUI:
         list_frame = tk.Frame(self.custom_frame)
         list_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
-        columns = ('Name', 'Arrival', 'BT_Now', 'PT_Now', 'PT_Used')
+        columns = ('Name', 'Arrival', 'Burst', 'Priority', 'Processed')
         self.process_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=8)
         
         for col in columns:

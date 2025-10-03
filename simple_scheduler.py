@@ -130,12 +130,18 @@ class SimpleMLFQScheduler:
             self.add_process(Process(name, at, bt, pr))
             sorted_processes.pop(0)
 
-    def _preemption_check(self, sorted_processes, time_to_run):
+    def _preemption_check(self, sorted_processes, time_to_run, base_priority=None):
 
         current_process_end = self.current_time + time_to_run
         vips = []
 
-        if self.cpu is None:
+        #if self.cpu is None:
+        #    return current_process_end, None
+
+        if base_priority is None:
+            base_priority = self.cpu.priority if self.cpu is not None else None
+
+        if base_priority is None:
             return current_process_end, None
 
         for process in sorted_processes:
@@ -145,7 +151,7 @@ class SimpleMLFQScheduler:
             priority = process[3]
 
             # Checks if a vip process is arriving earlier than the current process end
-            if arrival < current_process_end and priority < self.cpu.priority:
+            if arrival < current_process_end and priority < base_priority:
                 # Preempt the current process
                 current_process_end = arrival
                 vips.append(process)
@@ -180,9 +186,10 @@ class SimpleMLFQScheduler:
             return
         p = self.cpu
         self.cpu = None
+        self.cpu_proc_end = None
         if p.remaining_time > 0:
-            self._add_to_queue(p, p.queue_level)
-
+            return p
+            
     def _process_completed(self):
         return sum(1 for p in self.processes.values() if p.completion_time is not None)
     
@@ -248,6 +255,7 @@ class SimpleMLFQScheduler:
 
         # == SNAPSHOT ==
         frames = []
+        requeue_holder = None
 
         # Prepare for the main simulation loop
         sorted_processes = sorted(process_list, key=lambda x: x[1])
@@ -272,6 +280,11 @@ class SimpleMLFQScheduler:
             # == Arrival ==
             self._arrive(sorted_processes)
 
+            # If may requeue holder
+            if requeue_holder:
+                self._add_to_queue(requeue_holder, requeue_holder.queue_level)
+                requeue_holder = None
+
             # == IN CPU ==
 
             # If wala nang processes
@@ -292,9 +305,11 @@ class SimpleMLFQScheduler:
                     planned = min(q, next_proc.remaining_time) 
                     run_end = self.current_time + planned
 
+
                     # == Preemption ==
                     if self.preempt:
-                        preempt_end, vip = self._preemption_check(sorted_processes, planned)  
+                        #preempt_end, vip = self._preemption_check(sorted_processes, planned)
+                        preempt_end, vip = self._preemption_check(sorted_processes, planned, base_priority=next_proc.priority)  
                         if preempt_end is not None:
                             run_end = min(run_end, preempt_end)
                         if vip is not None:     
@@ -302,12 +317,11 @@ class SimpleMLFQScheduler:
                             sorted_processes.insert(0, vip)
 
                     self._move_to_CPU(next_proc, run_end)
+                    frames.append(self._snapshot(self.cpu.name))
 
             if self.cpu:
                 self.cpu.remaining_time -= 1
                 self.cpu.process_time += 1
-                # Take snapshot after incrementing process_time to show current PT value
-                frames.append(self._snapshot(self.cpu.name))
 
             # Check for process completion
             if self.cpu_proc_end is not None and self.current_time + 1 == self.cpu_proc_end:
@@ -325,7 +339,7 @@ class SimpleMLFQScheduler:
                 # == Out CPU ==
                 if self.cpu.remaining_time > 0:
                     self._handle_demotion(self.cpu)
-                self._move_out_CPU()
+                requeue_holder = self._move_out_CPU()
 
 
             sim_done = self._process_completed()
@@ -335,14 +349,6 @@ class SimpleMLFQScheduler:
 
             # Move time forward    
             self.current_time += 1
-            
-            #NEWLY ADDED
-            # Create a frame at the end of each tick to show final state
-            # This ensures we have a frame for every tick with updated PT values
-            if self.cpu:
-                frames.append(self._snapshot(self.cpu.name))
-            else:
-                frames.append(self._snapshot(None))
 
         # Result details
         results = []
