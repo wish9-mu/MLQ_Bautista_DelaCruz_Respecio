@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from tkinter import ttk, scrolledtext
 
 def setup_results_tab(self):
         """
@@ -60,10 +60,10 @@ def setup_results_tab(self):
         results_container = tk.Frame(results_table_frame)
         results_container.pack(fill='both', expand=True, padx=5, pady=5)
         
-        columns = ('Process', 'Arrival', 'BT_Now', 'PT_Now', 'PT_Used', 'First Start', 'Completion', 'Turnaround', 'WT_Now', 'Response')
+        columns = ('Process', 'Arrival', 'BT_Now', 'PT_Now', 'First Start', 'Completion', 'Turnaround', 'WT_Now', 'Response')
         self.results_tree = ttk.Treeview(results_container, columns=columns, show='headings', height=6)
-        
-        column_widths = {'Process': 60, 'Arrival': 60, 'BT_Now': 60, 'PT_Now': 60, 'PT_Used': 60, 'First Start': 80, 'Completion': 80, 'Turnaround': 80, 'WT_Now': 70, 'Response': 70}
+
+        column_widths = {'Process': 60, 'Arrival': 60, 'BT_Now': 60, 'PT_Now': 60, 'First Start': 80, 'Completion': 80, 'Turnaround': 80, 'WT_Now': 70, 'Response': 70}
         for col in columns:
             self.results_tree.heading(col, text=col)
             self.results_tree.column(col, width=column_widths.get(col, 60))
@@ -163,7 +163,7 @@ def populate_results_tab(self):
         for r in self.results:
             pt_used = r['burst'] - (r['burst'] - r.get('remaining', 0)) if 'remaining' in r else r['burst']
             self.results_tree.insert('', 'end', values=(
-                r['name'], r['arrival'], r['burst'], r['priority'], pt_used,
+                r['name'], r['arrival'], r['burst'], r['priority'],
                 r['first_start'] if r['first_start'] is not None else "N/A",
                 r['completion']  if r['completion']  is not None else "N/A",
                 r['turnaround']  if r['turnaround']  is not None else "N/A",
@@ -193,46 +193,3 @@ def populate_results_tab(self):
         else:
             summary_text = "No processes completed."
         self.summary_text.insert('1.0', summary_text)
-
-def _display_results(self, timeline, results, frames):
-    self.notebook.select(self.simulation_tab)
-
-    # store data for later
-    self.timeline = timeline or []
-    self.results  = results or []
-    self.frames   = frames or []
-
-    # UI status
-    self.status_label.config(text="Simulation completed. Playing animation…")
-
-    # reset animation state
-    self.frame_i = 0
-    self.anim_total = len(self.frames)
-    self._animating = False
-    self._anim_after_id = None
-    self.status_label.config(text="Simulation ready. Use ▶, Next, or Prev.")
-
-    # clear canvases before first paint
-    for c in getattr(self, 'queue_canvases', []):
-        c.delete('all')
-    self.schedule_canvas.delete('all')
-
-    # prime buttons
-    self.play_btn.config(state=('normal' if self.anim_total > 0 else 'disabled'))
-    self.pause_btn.config(state='disabled')
-    self.reset_btn.config(state=('normal' if self.anim_total > 0 else 'disabled'))
-    self.prev_tick_btn.config(state='disabled')
-    self.next_tick_btn.config(state=('normal' if self.anim_total > 1 else 'disabled'))
-
-    # paint tick 0 immediately
-    if self.anim_total > 0:
-        self._repaint_animation_frame()
-        self.play_animation()
-
-
-def _show_error(self, error_message):
-    self.play_btn.config(state='normal')
-    self.pause_btn.config(state='disabled')
-    self.reset_btn.config(state='disabled')
-    self.status_label.config(text="Simulation failed!")
-    messagebox.showerror("Simulation Error", f"An error occurred: {error_message}")

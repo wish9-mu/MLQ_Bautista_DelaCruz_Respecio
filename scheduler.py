@@ -344,7 +344,7 @@ class SimpleMLFQScheduler:
 
             sim_done = self._process_completed()
             # Check if all processes are completed
-            if sim_done == len(self.processes):
+            if sim_done == len(self.processes) and not sorted_processes:
                 break
 
             # Move time forward    
