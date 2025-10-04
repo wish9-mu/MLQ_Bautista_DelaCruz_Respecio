@@ -7,15 +7,15 @@ from process import Process
 class SimpleMLFQScheduler:
     
     # Set in here are defaults
-    def __init__(self, quantums=[3, 3, 3], demote_threshold=6, aging_threshold=5, preempt=True):
+    def __init__(self, quantums=[3, 3, 3, 3], demote_threshold=6, aging_threshold=5, preempt=True):
         
         self.quantums = quantums
         self.demote_threshold = demote_threshold
         self.aging_threshold = aging_threshold
         self.preempt = preempt
         
-        # Create 3 queues with each queue as a list of processes
-        self.queues = [[], [], []]
+        # Create 4 queues with each queue as a list of processes
+        self.queues = [[], [], [], []]
         
         # Keep track of all processes, where in process_name -> Process object
         self.processes = {} 
@@ -60,7 +60,7 @@ class SimpleMLFQScheduler:
         # Get the next process to run (from the highest priority non-empty queue).
         
         # We check queue 0 first (highest priority), then 1, then 2 (lowest priority)
-        for queue_level in range(3):  
+        for queue_level in range(4):  
             if self.queues[queue_level]:  
                 # Uses list.pop(0) to take the first process from the queue (W3Schools: Python List Methods)
                 # This removes it from the queue and returns the process name
@@ -73,7 +73,7 @@ class SimpleMLFQScheduler:
     
     def _update_time_in_queue(self):
         # Increases waiting time for each process and saves the total waiting time
-        for queue_level in range(3):
+        for queue_level in range(4):
             for process_name in (self.queues[queue_level]):
                 process = self.processes[process_name]
                 # Uses hasattr() to check if the process has a enqueued_at attribute (GeeksforGeeks: Python hasattr)
@@ -91,8 +91,8 @@ class SimpleMLFQScheduler:
         if self.aging_threshold <= 0:
             return  
             
-        # Check q1 & q2, no checks for q0 (highest)
-        for queue_level in [1, 2]:
+        # Check q1, q2 & q3, no checks for q0 (highest)
+        for queue_level in [1, 2, 3]:
             processes_to_move = []
             
             # Check each process in this queue
@@ -119,8 +119,8 @@ class SimpleMLFQScheduler:
         if self.demote_threshold <= 0:
             return
 
-        # Check q0 & q1, no checks for q2 (lowest)
-        if exiting_process.process_time >= self.demote_threshold and exiting_process.queue_level < 2:
+        # Check q0, q1 & q2, no checks for q3 (lowest)
+        if exiting_process.process_time >= self.demote_threshold and exiting_process.queue_level < 3:
             exiting_process.queue_level += 1
             exiting_process.process_time = 0
 
@@ -172,13 +172,12 @@ class SimpleMLFQScheduler:
         
         self.cpu = next
 
+        # is set when a process is first added to the CPU
         if self.cpu.first_start_time is None:
-            self.cpu.first_start_time = self.current_time
+            self.cpu.first_start_time = self.current_time # set the first start time
         
         # Mark slice start (for timeline)
         self.current_run_start = self.current_time
-
-        # Single source of truth for slice end
         self.cpu_proc_end = run_end
 
     def _move_out_CPU(self):
@@ -205,7 +204,7 @@ class SimpleMLFQScheduler:
         
         # Queues with attributes
         detailed_queues = []
-        for queue_level in range(3):
+        for queue_level in range(4):
             queue_info = []
             for process_name in self.queues[queue_level]:
                 if process_name in self.processes:
@@ -264,12 +263,15 @@ class SimpleMLFQScheduler:
         if not sorted_processes:
             return
     
+        # Handle initial process arrivals
         self._arrive(sorted_processes)
 
+        # Wait process arrives
         while not self.processes:
             self.current_time += 1
             self._arrive(sorted_processes)
 
+        # Main simulation loop
         while True:
             # == Increase waiting time ==
             self._update_time_in_queue()
@@ -347,7 +349,7 @@ class SimpleMLFQScheduler:
             if sim_done == len(self.processes):
                 break
 
-            # Move time forward    
+            # Time advances 
             self.current_time += 1
 
         # Result details

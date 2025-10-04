@@ -7,15 +7,15 @@ def load_defaults(path="default_processes.txt"):
     """
     Load scheduler settings + processes from file.
     Priority: file values first, fallback = hardcoded.
-    Returns ((q0,q1,q2), demote, aging, process_list).
+    Returns ((q0,q1,q2,q3), demote, aging, process_list).
     """
     # Fallbacks
-    q0, q1, q2 = 3, 3, 3
+    q0, q1, q2, q3 = 3, 3, 3, 3
     demote, aging = 6, 5
     processes = list(DEFAULT_PROCESSES)
 
     if not os.path.exists(path):
-        return (q0, q1, q2), demote, aging, processes
+        return (q0, q1, q2, q3), demote, aging, processes
 
     read_procs = []
     with open(path, "r") as f:
@@ -34,6 +34,7 @@ def load_defaults(path="default_processes.txt"):
                 if key == "Q0": q0 = ival
                 elif key == "Q1": q1 = ival
                 elif key == "Q2": q2 = ival
+                elif key == "Q3": q3 = ival
                 elif key == "DEMOTE": demote = ival
                 elif key == "AGING": aging = ival
             # Processes
@@ -49,7 +50,7 @@ def load_defaults(path="default_processes.txt"):
 
     if read_procs:
         processes = read_procs
-    return (q0, q1, q2), demote, aging, processes
+    return (q0, q1, q2, q3), demote, aging, processes
 
 
 class Process:
@@ -62,8 +63,8 @@ class Process:
         self.remaining_time = burst_time  # How much work is left
         
         # Uses max() and min() to convert priority to queue level (W3Schools: Python Built-in Functions)
-        # Priority 1 becomes queue 0 (highest), priority 2 becomes queue 1, priority 3 becomes queue 2
-        self.queue_level = max(0, min(2, priority - 1))  # Which queue it starts in (0, 1, or 2)
+        # Priority 1 becomes queue 0 (highest), priority 2 becomes queue 1, priority 3 becomes queue 2, priority 4 becomes queue 3
+        self.queue_level = max(0, min(3, priority - 1))  # Which queue it starts in (0, 1, 2, or 3)
         self.first_start_time = None  # When it first got CPU time
         self.completion_time = None   # When it finished completely
         self.waiting_time = 0         # Total time spent waiting
@@ -113,6 +114,7 @@ DEFAULT_PROCESSES = [
     ("P5", 11, 15, 3), # Process 5: arrives at time 11, needs 15 units, priority 3
     ("P6", 15, 8, 2),  # Process 6: arrives at time 15, needs 8 units, priority 2
     ("P7", 20, 4, 1),  # Process 7: arrives at time 20, needs 4 units, priority 1
+    ("P8", 25, 12, 4), # Process 8: arrives at time 25, needs 12 units, priority 4
 ]
 
 # Default settings for the scheduler

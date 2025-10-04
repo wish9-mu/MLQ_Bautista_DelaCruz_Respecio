@@ -78,7 +78,7 @@ def setup_simulation_tab(self):
     left_panel.pack(side='left', fill='both', expand=True, padx=(0, 5))
 
     # Create queue canvases
-    queue_titles = ["Q0", "Q1", "Q2"]
+    queue_titles = ["Q0", "Q1", "Q2", "Q3"]
     self.queue_canvases = []
     for i, title in enumerate(queue_titles):
         q_frame = tk.LabelFrame(left_panel, text=title, font=("Arial", 12, "bold"))
@@ -193,7 +193,7 @@ def _run_simulation_background(self):
         
         # Create scheduler with separate quantums for each queue
         scheduler = SimpleMLFQScheduler(
-            quantums=[self.quantum_q0.get(), self.quantum_q1.get(), self.quantum_q2.get()],
+            quantums=[self.quantum_q0.get(), self.quantum_q1.get(), self.quantum_q2.get(), self.quantum_q3.get()],
             demote_threshold=self.demote_threshold.get(),
             aging_threshold=self.aging_threshold.get(),
             preempt=self.preempt.get()

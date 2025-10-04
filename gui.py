@@ -123,8 +123,9 @@ class MLFQGUI:
         
         self.num_processes = tk.IntVar(value=len(DEFAULT_PROCESSES))  # Number of processes to simulate
         self.quantum_q0 = tk.IntVar(value=3)  # Time slice for Queue 0 (highest priority)
-        self.quantum_q1 = tk.IntVar(value=3)  # Time slice for Queue 1 (medium priority)
-        self.quantum_q2 = tk.IntVar(value=3)  # Time slice for Queue 2 (lowest priority)
+        self.quantum_q1 = tk.IntVar(value=3)  # Time slice for Queue 1 (high priority)
+        self.quantum_q2 = tk.IntVar(value=3)  # Time slice for Queue 2 (medium priority)
+        self.quantum_q3 = tk.IntVar(value=3)  # Time slice for Queue 3 (lowest priority)
         self.demote_threshold = tk.IntVar(value=DEFAULT_DEMOTE_THRESHOLD)  # Time before moving to lower priority
         self.aging_threshold = tk.IntVar(value=DEFAULT_AGING_THRESHOLD)    # Time before moving to higher priority
         self.preempt = tk.BooleanVar(value=True)  # Whether higher priority processes can interrupt lower ones
@@ -260,8 +261,9 @@ class MLFQGUI:
         settings = [
             ("Time Quantum per Queue", [
                 ("Q0 (Highest):", self.quantum_q0),
-                ("Q1 (Medium):", self.quantum_q1),
-                ("Q2 (Lowest):", self.quantum_q2)
+                ("Q1 (High):", self.quantum_q1),
+                ("Q2 (Medium):", self.quantum_q2),
+                ("Q3 (Lowest):", self.quantum_q3)
             ]),
             ("Demotion Threshold", [("Threshold:", self.demote_threshold)]),
             ("Aging Threshold", [("Threshold:", self.aging_threshold)])

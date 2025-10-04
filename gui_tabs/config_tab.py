@@ -121,11 +121,12 @@ def toggle_custom_processes(self):
         self.load_custom_btn.config(state='disabled')
         self.custom_status_label.config(text="")
 
-        (q0, q1, q2), demote, aging, file_procs = load_defaults("default_processes.txt")
+        (q0, q1, q2, q3), demote, aging, file_procs = load_defaults("default_processes.txt")
 
         self.quantum_q0.set(q0)
         self.quantum_q1.set(q1)
         self.quantum_q2.set(q2)
+        self.quantum_q3.set(q3)
         self.demote_threshold.set(demote)
         self.aging_threshold.set(aging)
 
@@ -192,8 +193,8 @@ def load_custom_processes(self):
                     raise ValueError(f"Process {name}: Arrival time must be ≥ 0")
                 if burst_val < 1:
                     raise ValueError(f"Process {name}: Burst time must be ≥ 1")
-                if priority_val not in (1, 2, 3):
-                    raise ValueError(f"Process {name}: Priority must be 1, 2, or 3")
+                if priority_val not in (1, 2, 3, 4):
+                    raise ValueError(f"Process {name}: Priority must be 1, 2, 3, or 4")
                 if pt_used_val < 0:
                     raise ValueError(f"Process {name}: PT_Used must be ≥ 0")
                 
@@ -272,7 +273,7 @@ def parse_process_file(self, file_path):
             parts = line.split()
             
             # Settings (Q0/Q1/Q2/DEMOTE/AGING value)
-            if len(parts) == 2 and parts[0].upper() in ("Q0", "Q1", "Q2", "DEMOTE", "AGING"):
+            if len(parts) == 2 and parts[0].upper() in ("Q0", "Q1", "Q2", "Q3", "DEMOTE", "AGING"):
                 try:
                     settings[parts[0].upper()] = int(parts[1])
                 except ValueError:
@@ -283,7 +284,7 @@ def parse_process_file(self, file_path):
             if len(parts) == 4:
                 try:
                     name, arrival, burst, priority = parts[0], int(parts[1]), int(parts[2]), int(parts[3])
-                    if arrival < 0 or burst < 1 or priority not in (1, 2, 3):
+                    if arrival < 0 or burst < 1 or priority not in (1, 2, 3, 4):
                         raise ValueError("Invalid process values")
                     processes.append((name, arrival, burst, priority))
                 except ValueError:
@@ -297,6 +298,7 @@ def parse_process_file(self, file_path):
         if key == "Q0": self.quantum_q0.set(value)
         elif key == "Q1": self.quantum_q1.set(value)
         elif key == "Q2": self.quantum_q2.set(value)
+        elif key == "Q3": self.quantum_q3.set(value)
         elif key == "DEMOTE": self.demote_threshold.set(value)
         elif key == "AGING": self.aging_threshold.set(value)
 
@@ -512,6 +514,7 @@ def update_settings_display(self):
     • Time Quantum Q0 (Highest): {self.quantum_q0.get()}
     • Time Quantum Q1 (Medium): {self.quantum_q1.get()}
     • Time Quantum Q2 (Lowest): {self.quantum_q2.get()}
+    • Time Quantum Q3 (Lowest): {self.quantum_q3.get()}
     • Demotion Threshold: {self.demote_threshold.get()}
     • Aging Threshold: {self.aging_threshold.get()}
     • Preemption: {'Yes' if self.preempt.get() else 'No'}

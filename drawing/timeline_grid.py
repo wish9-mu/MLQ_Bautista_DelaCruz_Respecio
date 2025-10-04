@@ -20,13 +20,13 @@ def draw_timeline_grid(self):
         
         # Calculate total grid dimensions
         total_width = max(canvas_width, (max_time + 1) * cell_width + 100)
-        total_height = header_height + 4 * cell_height + 20  # 4 rows: Q0, Q1, Q2, CPU
+        total_height = header_height + 5 * cell_height + 20  # 5 rows: Q0, Q1, Q2, Q3, CPU
         
         # Set scroll region
         canvas.configure(scrollregion=(0, 0, total_width, total_height))
         
         # Draw headers
-        headers = ['Q0 (Highest)', 'Q1', 'Q2', 'CPU (Running)']
+        headers = ['Q0 (Highest)', 'Q1 (High)', 'Q2 (Medium)', 'Q3 (Lowest)', 'CPU (Running)']
         for i, header in enumerate(headers):
             y_pos = header_height + i * cell_height
             canvas.create_text(10, y_pos + cell_height//2, text=header, 
@@ -40,7 +40,7 @@ def draw_timeline_grid(self):
         
         # Create a grid to track what's in each cell
         grid_data = {}
-        for queue_level in range(3):  # Q0, Q1, Q2
+        for queue_level in range(4):  # Q0, Q1, Q2, Q3
             grid_data[queue_level] = {}
             for t in range(max_time + 1):
                 grid_data[queue_level][t] = None
