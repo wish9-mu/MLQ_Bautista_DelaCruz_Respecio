@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from tkinter import ttk, scrolledtext
 
 def setup_results_tab(self):
         """
@@ -193,46 +193,3 @@ def populate_results_tab(self):
         else:
             summary_text = "No processes completed."
         self.summary_text.insert('1.0', summary_text)
-
-def _display_results(self, timeline, results, frames):
-    self.notebook.select(self.simulation_tab)
-
-    # store data for later
-    self.timeline = timeline or []
-    self.results  = results or []
-    self.frames   = frames or []
-
-    # UI status
-    self.status_label.config(text="Simulation completed. Playing animation…")
-
-    # reset animation state
-    self.frame_i = 0
-    self.anim_total = len(self.frames)
-    self._animating = False
-    self._anim_after_id = None
-    self.status_label.config(text="Simulation ready. Use ▶, Next, or Prev.")
-
-    # clear canvases before first paint
-    for c in getattr(self, 'queue_canvases', []):
-        c.delete('all')
-    self.schedule_canvas.delete('all')
-
-    # prime buttons
-    self.play_btn.config(state=('normal' if self.anim_total > 0 else 'disabled'))
-    self.pause_btn.config(state='disabled')
-    self.reset_btn.config(state=('normal' if self.anim_total > 0 else 'disabled'))
-    self.prev_tick_btn.config(state='disabled')
-    self.next_tick_btn.config(state=('normal' if self.anim_total > 1 else 'disabled'))
-
-    # paint tick 0 immediately
-    if self.anim_total > 0:
-        self._repaint_animation_frame()
-        self.play_animation()
-
-
-def _show_error(self, error_message):
-    self.play_btn.config(state='normal')
-    self.pause_btn.config(state='disabled')
-    self.reset_btn.config(state='disabled')
-    self.status_label.config(text="Simulation failed!")
-    messagebox.showerror("Simulation Error", f"An error occurred: {error_message}")
